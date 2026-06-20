@@ -40,8 +40,10 @@ html, body, #root {
     background: radial-gradient(circle at center, transparent 40%, rgba(0,0,0,0.55) 100%);
 }
 
-/* Three.js canvas: disable browser touch gestures so OrbitControls handles them */
-canvas[data-testid="three-canvas"] {
+/* Three.js canvas: disable browser touch gestures so OrbitControls handles them.
+   R3F applies data-testid to the wrapper div; descendant selector targets the actual <canvas>. */
+[data-testid="three-canvas"] canvas,
+[data-testid="three-canvas"] {
     touch-action: none !important;
 }
 
