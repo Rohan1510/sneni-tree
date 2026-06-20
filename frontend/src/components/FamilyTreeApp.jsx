@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { Toaster, toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, TreeStructure, Sparkle, ArrowsOutSimple, Tree, ClockCounterClockwise } from "@phosphor-icons/react";
+import { Plus, TreeStructure, Sparkle, ArrowsOutSimple, Tree, ClockCounterClockwise, FilmReel } from "@phosphor-icons/react";
 import Scene3D from "./Scene3D";
 import AddMemberDialog from "./AddMemberDialog";
 import DetailsPanel from "./DetailsPanel";
 import EmptyState from "./EmptyState";
 import SearchBar from "./SearchBar";
 import TimelineScrubber from "./TimelineScrubber";
+import CinemaOverlay from "./CinemaOverlay";
 import { listMembers, deleteMember, uploadPhoto, updateMember } from "../lib/api";
 import { computeLayout, boundingBox } from "../lib/layout";
 
@@ -21,6 +22,7 @@ export default function FamilyTreeApp() {
   const [mode, setMode] = useState("tree");
   const [timelineYear, setTimelineYear] = useState(null);
   const [playing, setPlaying] = useState(false);
+  const [cinemaActive, setCinemaActive] = useState(false);
   const playerRef = useRef(null);
 
   const refresh = useCallback(async () => {
@@ -39,8 +41,9 @@ export default function FamilyTreeApp() {
   const layout = useMemo(() => computeLayout(members, mode), [members, mode]);
   const selected = members.find(m => m.id === selectedId) || null;
 
-  // Initialise timeline year when entering timeline mode
+  // Initialise timeline year when entering timeline mode (not when cinema controls it)
   useEffect(() => {
+    if (cinemaActive) return;
     if (mode === "timeline" && layout.yearRange) {
       if (timelineYear == null || timelineYear < layout.yearRange.min || timelineYear > layout.yearRange.max) {
         setTimelineYear(layout.yearRange.max);
@@ -49,7 +52,7 @@ export default function FamilyTreeApp() {
       // Stop playback when leaving timeline
       setPlaying(false);
     }
-  }, [mode, layout.yearRange]); // eslint-disable-line
+  }, [mode, layout.yearRange, cinemaActive]); // eslint-disable-line
 
   // Auto-play
   useEffect(() => {
@@ -134,8 +137,24 @@ export default function FamilyTreeApp() {
     });
   }, [layout.nodes]);
 
-  const timelineActive = mode === "timeline";
+  const timelineActive = mode === "timeline" || cinemaActive;
   const hasTimelineData = !!layout.yearRange;
+
+  const enterCinema = useCallback(() => {
+    if (!hasTimelineData) return;
+    setMode("timeline");
+    setCinemaActive(true);
+    setPlaying(false); // CinemaOverlay manages its own playback
+    setSelectedId(null);
+    setTimeout(() => {
+      const bbox = boundingBox(layout.nodes);
+      setFocusIntent({ type: "fit", center: bbox.center, size: bbox.size, ts: Date.now() });
+    }, 60);
+  }, [hasTimelineData, layout.nodes]);
+
+  const exitCinema = useCallback(() => {
+    setCinemaActive(false);
+  }, []);
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-[#0A0B10]" data-testid="family-tree-app">
@@ -156,52 +175,66 @@ export default function FamilyTreeApp() {
       <div className="grain-overlay" />
 
       {/* Brand */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="absolute top-6 left-6 z-40 flex items-center gap-3"
-        data-testid="brand-logo"
-      >
-        <div className="w-10 h-10 rounded-full glass flex items-center justify-center">
-          <TreeStructure size={20} weight="duotone" color="#D4AF37" />
-        </div>
-        <div>
-          <div className="font-cormorant text-2xl font-light tracking-tight leading-none">Lineage</div>
-          <div className="font-manrope text-[10px] tracking-[0.25em] uppercase text-white/40 mt-1">Constellation of memories</div>
-        </div>
-      </motion.div>
+      {!cinemaActive && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="absolute top-6 left-6 z-40 flex items-center gap-3"
+          data-testid="brand-logo"
+        >
+          <div className="w-10 h-10 rounded-full glass flex items-center justify-center">
+            <TreeStructure size={20} weight="duotone" color="#D4AF37" />
+          </div>
+          <div>
+            <div className="font-cormorant text-2xl font-light tracking-tight leading-none">Lineage</div>
+            <div className="font-manrope text-[10px] tracking-[0.25em] uppercase text-white/40 mt-1">Constellation of memories</div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Search */}
-      {members.length > 0 && (
+      {members.length > 0 && !cinemaActive && (
         <SearchBar members={members} onPick={focusOnMember} />
       )}
 
       {/* Counter + Mode toggle */}
-      {members.length > 0 && (
+      {members.length > 0 && !cinemaActive && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
           className="absolute top-6 right-6 z-40 flex items-center gap-2"
         >
-          {hasTimelineData && (
-            <button
-              type="button"
-              onClick={toggleMode}
-              data-testid="mode-toggle-button"
-              title={timelineActive ? "Switch to family tree view" : "Switch to timeline view"}
-              className={`glass rounded-full px-3.5 py-2 flex items-center gap-2 transition-all hover:-translate-y-0.5 ${timelineActive ? "ring-1 ring-[#D4AF37]/40" : ""}`}
-            >
-              {timelineActive ? (
-                <Tree size={14} weight="duotone" color="#D4AF37" />
-              ) : (
-                <ClockCounterClockwise size={14} weight="duotone" color="#D4AF37" />
-              )}
-              <span className="font-manrope text-xs tracking-wider text-white/80">
-                {timelineActive ? "Tree" : "Timeline"}
-              </span>
-            </button>
+          {hasTimelineData && !cinemaActive && (
+            <>
+              <button
+                type="button"
+                onClick={enterCinema}
+                data-testid="cinema-button"
+                title="Cinema — full-screen short film"
+                className="glass rounded-full px-3.5 py-2 flex items-center gap-2 transition-all hover:-translate-y-0.5 hover:ring-1 hover:ring-[#D4AF37]/40"
+              >
+                <FilmReel size={14} weight="duotone" color="#D4AF37" />
+                <span className="font-manrope text-xs tracking-wider text-white/80">Cinema</span>
+              </button>
+              <button
+                type="button"
+                onClick={toggleMode}
+                data-testid="mode-toggle-button"
+                title={timelineActive ? "Switch to family tree view" : "Switch to timeline view"}
+                className={`glass rounded-full px-3.5 py-2 flex items-center gap-2 transition-all hover:-translate-y-0.5 ${timelineActive ? "ring-1 ring-[#D4AF37]/40" : ""}`}
+              >
+                {timelineActive ? (
+                  <Tree size={14} weight="duotone" color="#D4AF37" />
+                ) : (
+                  <ClockCounterClockwise size={14} weight="duotone" color="#D4AF37" />
+                )}
+                <span className="font-manrope text-xs tracking-wider text-white/80">
+                  {timelineActive ? "Tree" : "Timeline"}
+                </span>
+              </button>
+            </>
           )}
           <div className="glass rounded-full px-4 py-2 flex items-center gap-2" data-testid="member-counter">
             <Sparkle size={14} weight="fill" color="#D4AF37" />
@@ -220,7 +253,7 @@ export default function FamilyTreeApp() {
 
       {/* Timeline scrubber */}
       <AnimatePresence>
-        {timelineActive && hasTimelineData && (
+        {timelineActive && hasTimelineData && !cinemaActive && (
           <TimelineScrubber
             year={timelineYear ?? layout.yearRange.max}
             setYear={setTimelineYear}
@@ -231,7 +264,7 @@ export default function FamilyTreeApp() {
         )}
       </AnimatePresence>
 
-      {members.length > 0 && (
+      {members.length > 0 && !cinemaActive && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -257,7 +290,7 @@ export default function FamilyTreeApp() {
         </motion.div>
       )}
 
-      {members.length > 0 && (
+      {members.length > 0 && !cinemaActive && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-40 text-white/30 text-[10px] tracking-[0.3em] uppercase font-manrope pointer-events-none">
           drag · pinch · two-finger pan
         </div>
@@ -298,6 +331,15 @@ export default function FamilyTreeApp() {
           fontFamily: "Manrope, sans-serif",
         }
       }} />
+
+      <CinemaOverlay
+        active={cinemaActive}
+        members={members}
+        range={layout.yearRange}
+        year={timelineYear}
+        setYear={setTimelineYear}
+        onExit={exitCinema}
+      />
     </div>
   );
 }

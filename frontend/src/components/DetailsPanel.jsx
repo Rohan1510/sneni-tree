@@ -299,6 +299,7 @@ export default function DetailsPanel({ open, member, members, onClose, onDelete,
 
             <EventsSection
               member={member}
+              members={members}
               onSave={(patch) => onSave(member.id, patch)}
             />
           </div>

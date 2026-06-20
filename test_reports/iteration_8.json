@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 6 (1-tap Milestone Templates + Cinema Mode) — end-to-end PASS on both backend and frontend. Backend regression: 28/28 pytest pass (21 baseline + 7 events). Frontend: opened TEST_ParentA Details panel — milestone-chips row visible with all four chips (born, married, career, passed) all enabled (ParentA has birth_date 1920-03-12, death_date 1995-08-04 and partner TEST_ParentB). Events started at 4 (Graduated Yale 1938 / Married Eleanor 1948 / Founded Whitfield & Co. 1955 / Moved to NYC 1970). milestone-married → +1 ('Married TEST_ParentB' year 1948 — partner name pulled from members prop). milestone-career → +1 ('Career milestone' year 1942 = birthYear+22). milestone-born → +1 ('Born' year 1920). milestone-passed → +1 ('Passed away' year 1995). Final count 8 — verified via screenshot: chronologically sorted Born 1920, Graduated Yale 1938, Career milestone 1942, Married Eleanor 1948, Married TEST_ParentB 1948, Founded Whitfield & Co. 1955, Moved to NYC 1970, Passed away 1995. Cinema flow: cinema-button visible in top-right toolbar (hasTimelineData true). Click → cinema-overlay mounted, normal chrome (brand-logo, search-input, member-counter, mode-toggle-button, add-member-button) all unmounted from DOM. cinema-year started at 1922 (~2 ticks after the 800ms warmup; range.min=1920), advanced to 1929 after another 2s, then to 1948 after 9s — playback rate ≈350-400ms/year, within spec tolerance. cinema-play-toggle and cinema-exit-button both present. At year 1948 three caption cards stacked: '1948 · TEST_ParentA Married Eleanor', '1948 · TEST_ParentA Married TEST_ParentB', '1942 · TEST_ParentA Career milestone' with color-coded heart/briefcase icons — confirmed in screenshot. Exit: Escape key closes overlay AND restores chrome (member-counter visible again). Second cinema entry + cinema-exit-button click also closes overlay and restores chrome. No console errors observed during the full flow.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_events_api.py",
+    "/app/backend/tests/test_members_api.py",
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "EventsSection.milestones uses hasType('born-marker') and hasType('passed-marker') as duplicate guards, but the events these chips push have type 'other' (not 'born-marker'/'passed-marker'). So tapping Born twice will create two 'Born' events and tapping Passed twice will create two 'Passed away' events. Spec calls for an enabled/disabled state but doesn't strictly require dedup — flagging because the existing dedup logic appears intended but is dead code. Either change the pushed event type, or change hasType to check by title, or drop the guard entirely.",
+    "CinemaOverlay timing measured 350-400ms/year (faster than the documented 400ms). Within tolerance and unlikely to be user-noticeable, but if exact 400ms is required, consider using a high-resolution timer or rAF-based scheduler instead of setInterval (which has min-clamp and drift on background tabs).",
+    "milestone-career on a member with no birth_date would crash on birthY + 22 — currently guarded by ready=birthY!=null and the chip is disabled, so safe. Just noting the implicit dependency for future refactors.",
+    "CinemaOverlay setYear is called both inside its own interval and via the parent's TimelineScrubber when not active — fine today but the dual-owner pattern is fragile. Suggest hoisting playback state into a single source of truth (e.g., a usePlayback hook) when adding more playback features."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (28/28 pytest pass)", "frontend": "100% on all Iteration-6 acceptance criteria"},
+  "test_credentials": "N/A - no auth",
+  "seed_data_creation": "Reseeded via /tmp/seed_events.py before UI testing — 6 members, 7 base events. During the UI run, 4 milestone events were added on TEST_ParentA (Born 1920, Career milestone 1942, Married TEST_ParentB 1948, Passed away 1995). Final DB state at end of test = 6 members, 11 events on TEST_ParentA's record (was 7 baseline + 4 milestone). Not cleaned up — reseed via /tmp/seed_events.py if a pristine baseline is needed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 6 fully works. UI added 4 milestone events to TEST_ParentA during testing so the live tree now has 11 events on ParentA (8 visible chronologically) — run /tmp/seed_events.py to reset. Cinema playback rate is currently ~350-400ms/year (slightly faster than the 400ms spec), which is acceptable but worth confirming with main agent if exact timing matters. milestone-born / milestone-passed currently allow duplicates because their hasType() guards reference types ('born-marker', 'passed-marker') that the pushed event never uses — see critical_code_review_comments for fix options.",
+  "rca of the issue": "No bugs blocking acceptance. Only flag: milestone Born/Passed dedup guard is effectively dead code (hasType('born-marker'/'passed-marker') will never match because the inserted event.type is 'other'). Not in scope per the iteration spec, but recommend fixing for UX hygiene."
+}
