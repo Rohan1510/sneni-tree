@@ -45,6 +45,10 @@ export default function DetailsPanel({ open, member, members, onClose, onDelete,
         data-testid="details-panel"
         className="w-full sm:max-w-md bg-[#0A0B10]/95 backdrop-blur-2xl border-l border-white/10 text-white p-0 overflow-y-auto scroll-hidden"
       >
+        <SheetHeader className="sr-only">
+          <SheetTitle>{member.name}</SheetTitle>
+          <SheetDescription>Details for {member.name}</SheetDescription>
+        </SheetHeader>
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
