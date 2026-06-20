@@ -1,0 +1,28 @@
+{
+  "summary": "Iteration 6: tested Timeline mode (z-axis-by-birth-year) end-to-end. All specified behaviours PASS: mode toggle button shows 'Timeline'/'Tree' correctly, TimelineScrubber renders with gold-themed slider + YEAR label + year-number (big '2026' / '1920' etc.), members reposition along z (widths change from 88-113px in tree mode to 21-36px in timeline mode — clear depth evidence), camera auto-fits via 60ms-delayed focusIntent. Play auto-increments year (1922→1928 in ~2.5s, ~2.4 yr/s with 350ms interval — close to spec's 3x/sec), play icon swaps, pause works, rewind→minYear (1920), forward→maxYear (2026), slider keyboard arrows update year. Dimming states verified after waiting >500ms transition: at 1920 only ParentA(b.1920) is opacity 1.0, others 0.08 (not-born). At 1950 ChildC(b.1950) born — got the gold just-born ring; FullE/HalfD still not-born (0.08). At 2000 ParentA(d.1995) goes to past (0.45) while ParentB(d.2002) still alive (1.0). At 2026 (max) all 3 deceased are past (0.45) and 3 living are alive (1.0). Toggling back to Tree hides scrubber and re-enables tree-only state; autoplay resets on mode switch. Backend regression: all 21 existing pytest tests pass (members CRUD, marriages, death_date, photo upload).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Timeline mode 3D scene", "issues": ["Members appear small in timeline view (rendered avatar widths ~21-36px vs ~88-113px in tree mode). Camera fit distance computes to ~38.9 units (bbox size ~29.6, fov 50°, mult 1.1, +4 padding) with dz≈33. Within OrbitControls maxDistance=120 so not capped, but the result feels far from the camera. Consider lowering the fit multiplier from 1.1+4 to ~0.85+2, or reducing the diagonal dz weighting (currently 0.85) for a closer view."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_members_api.py", "/app/backend/tests/test_new_features.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "OPTIONAL UX: tighten timeline-mode camera fit so member avatars are larger. In Scene3D.jsx CameraController.fit, lowering the padding (currently distance = (size/2)/tan(fov/2) * 1.1 + 4) to ~*0.85 + 2 should roughly double on-screen avatar size. No correctness bug — purely a tuning suggestion called out in the review request."
+  ],
+  "critical_code_review_comments": [
+    "MemberNode opacity transition is 500ms (transition-opacity duration-500); when scrubbing/auto-playing fast this can briefly show intermediate values. Functionally correct, just worth noting if anyone writes pixel-exact assertions.",
+    "FamilyTreeApp.jsx toggleMode useCallback depends on layout.nodes captured at the moment of click; setTimeout(60ms) reads that stale snapshot before the new layout is computed for the next mode. It still works because layout updates from members+mode and React reconciles fast, but a slightly safer pattern would be a useEffect on [mode, layout.yearRange] that dispatches the 'fit' intent once the timeline layout settles.",
+    "layout.js Z_SCALE=0.28 yields ~30 z-units for a 106-year span — reasonable; matches the doc note."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (21/21 pytest pass)", "frontend": "100% on the 7 timeline acceptance criteria; 1 minor camera-distance UX nit reported"},
+  "test_credentials": "N/A - no auth",
+  "seed_data_creation": "Recreated the 5 TEST_ members via /api/members POST: TEST_ParentA (b.1920 d.1995), TEST_ParentB (b.1925 d.2002, partner of A), TEST_ChildC (b.1950, child of A+B), TEST_FullE (b.1955, child of A+B), TEST_HalfD (b.1965, child of A only). The pre-existing 'Krishna' (b.1921 d.2021) is also present, so total members = 6 and yearRange = 1920..2026. Seed script kept at /tmp/seed_members.py. NOT cleaned up — kept for the next testing agent.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Timeline mode passes all functional checks. The only feedback is the camera-distance UX (members appear small). If main agent tunes the CameraController.fit constants, verify avatar widths in timeline mode are closer to 50-70px (was 21-36px). All previous regression items also pass: mode toggle, scrubber play/pause/rewind/forward, slider keyboard, just-born ring, past dimming, not-born dimming, switching back hides scrubber, autoplay resets on mode switch, fit-to-screen, add-member dialog, search bar visible. 6 members currently seeded (5 TEST_ + 1 Krishna).",
+  "rca of the issue": "No bugs blocking the iteration. RCA on the 'members look small' UX nit: timeline mode introduces a ~30-unit z-spread on top of the existing 24-29 unit x-spread, so the bbox size used by CameraController.fit roughly doubles vs. tree mode. The fit formula `distance = (size/2)/tan(fov/2) * 1.1 + 4` then doubles the camera distance, shrinking on-screen avatars by ~2x (Drei <Html distanceFactor={10}> scales inversely with camera distance). Mitigation: lower the 1.1 multiplier and/or the +4 padding; alternatively reduce dz weighting from 0.85 to ~0.6 so the camera sits slightly above/to-the-side rather than head-on far."
+}

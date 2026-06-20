@@ -3,8 +3,8 @@
 //  - Within each generation: cluster by parent-set so siblings sit adjacent, then keep partners next to each other.
 //  - Edges: parent-child, partner, sibling (shared parents).
 
-export function computeLayout(members) {
-  if (!members || members.length === 0) return { nodes: {}, edges: [] };
+export function computeLayout(members, mode = "tree") {
+  if (!members || members.length === 0) return { nodes: {}, edges: [], yearRange: null };
 
   const byId = Object.fromEntries(members.map(m => [m.id, m]));
   const generations = {};
@@ -93,6 +93,47 @@ export function computeLayout(members) {
     });
   }
 
+  // === Timeline mode: override z by birth year ===
+  // Year range derived from all known birth and death years (+ current year).
+  let yearRange = null;
+  const years = [];
+  const nowY = new Date().getFullYear();
+  for (const m of members) {
+    if (m.birth_date) {
+      const y = parseInt(m.birth_date.slice(0, 4), 10);
+      if (!isNaN(y)) years.push(y);
+    }
+    if (m.death_date) {
+      const y = parseInt(m.death_date.slice(0, 4), 10);
+      if (!isNaN(y)) years.push(y);
+    }
+  }
+  if (years.length > 0) {
+    const minY = Math.min(...years);
+    const maxY = Math.max(...years, nowY);
+    yearRange = { min: minY, max: maxY };
+  }
+
+  if (mode === "timeline" && yearRange) {
+    const Z_SCALE = 0.28;
+    const span = Math.max(1, yearRange.max - yearRange.min);
+    const midZ = (span * Z_SCALE) / 2;
+    for (const m of members) {
+      const node = nodes[m.id];
+      if (!node) continue;
+      let year = null;
+      if (m.birth_date) {
+        const parsed = parseInt(m.birth_date.slice(0, 4), 10);
+        if (!isNaN(parsed)) year = parsed;
+      }
+      if (year !== null) {
+        node.z = (year - yearRange.min) * Z_SCALE - midZ;
+      } else {
+        node.z = -midZ - 2; // unknown-year members float behind the timeline
+      }
+    }
+  }
+
   // Edges
   const edges = [];
 
@@ -136,7 +177,7 @@ export function computeLayout(members) {
     }
   }
 
-  return { nodes, edges };
+  return { nodes, edges, yearRange };
 }
 
 // Return { full: [...], half: [...] } siblings for a given member, sorted with full first.
@@ -172,6 +213,6 @@ export function boundingBox(nodes) {
     if (v.x > max.x) max.x = v.x; if (v.y > max.y) max.y = v.y; if (v.z > max.z) max.z = v.z;
   }
   const center = { x: (min.x + max.x) / 2, y: (min.y + max.y) / 2, z: (min.z + max.z) / 2 };
-  const size = Math.max(max.x - min.x, max.y - min.y, 6);
+  const size = Math.max(max.x - min.x, max.y - min.y, max.z - min.z, 6);
   return { min, max, center, size };
 }

@@ -85,13 +85,15 @@ function CameraController({ intent }) {
       targetRef.current.copy(targetVec);
       desiredRef.current.copy(newCamPos);
     } else if (intent.type === "fit") {
-      // Fit-to-screen: place camera centered on bbox center, pulled back along z by enough
+      // Fit-to-screen: position camera diagonally so x/y/z spreads are visible (matters in timeline mode)
       const c = intent.center;
       const size = Math.max(intent.size, 8);
       const fov = camera.fov * (Math.PI / 180);
-      const distance = (size / 2) / Math.tan(fov / 2) * 1.4 + 6;
+      const distance = (size / 2) / Math.tan(fov / 2) * 1.1 + 4;
+      const dz = distance * 0.85;
+      const dx = distance * 0.25;
       targetRef.current.set(c.x, c.y, c.z);
-      desiredRef.current.set(c.x, c.y, c.z + distance);
+      desiredRef.current.set(c.x + dx, c.y, c.z + dz);
     } else {
       return;
     }
@@ -113,7 +115,7 @@ function CameraController({ intent }) {
   return null;
 }
 
-export default function Scene3D({ members, layout, selectedId, onSelect, focusIntent }) {
+export default function Scene3D({ members, layout, selectedId, onSelect, focusIntent, timelineYear }) {
   return (
     <Canvas
       camera={{ position: [0, 2, 18], fov: 50 }}
@@ -122,7 +124,7 @@ export default function Scene3D({ members, layout, selectedId, onSelect, focusIn
       data-testid="three-canvas"
     >
       <color attach="background" args={["#0A0B10"]} />
-      <fog attach="fog" args={["#0A0B10", 18, 60]} />
+      <fog attach="fog" args={["#0A0B10", 25, 90]} />
 
       <ambientLight intensity={0.6} />
       <directionalLight position={[5, 10, 8]} intensity={0.8} color="#FFE7B5" />
@@ -144,6 +146,7 @@ export default function Scene3D({ members, layout, selectedId, onSelect, focusIn
               position={[p.x, p.y, p.z]}
               selected={selectedId === m.id}
               onSelect={() => onSelect(m.id)}
+              timelineYear={timelineYear}
             />
           );
         })}
@@ -156,7 +159,7 @@ export default function Scene3D({ members, layout, selectedId, onSelect, focusIn
         zoomSpeed={0.8}
         panSpeed={0.7}
         minDistance={5}
-        maxDistance={60}
+        maxDistance={120}
         enablePan
         touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }}
         mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }}

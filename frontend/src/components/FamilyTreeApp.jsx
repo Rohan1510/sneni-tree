@@ -1,12 +1,13 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { Toaster, toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, TreeStructure, Sparkle, ArrowsOutSimple } from "@phosphor-icons/react";
+import { Plus, TreeStructure, Sparkle, ArrowsOutSimple, Tree, ClockCounterClockwise } from "@phosphor-icons/react";
 import Scene3D from "./Scene3D";
 import AddMemberDialog from "./AddMemberDialog";
 import DetailsPanel from "./DetailsPanel";
 import EmptyState from "./EmptyState";
 import SearchBar from "./SearchBar";
+import TimelineScrubber from "./TimelineScrubber";
 import { listMembers, deleteMember, uploadPhoto, updateMember } from "../lib/api";
 import { computeLayout, boundingBox } from "../lib/layout";
 
@@ -17,6 +18,10 @@ export default function FamilyTreeApp() {
   const [addOpen, setAddOpen] = useState(false);
   const [relateTo, setRelateTo] = useState(null);
   const [focusIntent, setFocusIntent] = useState(null);
+  const [mode, setMode] = useState("tree");
+  const [timelineYear, setTimelineYear] = useState(null);
+  const [playing, setPlaying] = useState(false);
+  const playerRef = useRef(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -31,8 +36,42 @@ export default function FamilyTreeApp() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const layout = useMemo(() => computeLayout(members), [members]);
+  const layout = useMemo(() => computeLayout(members, mode), [members, mode]);
   const selected = members.find(m => m.id === selectedId) || null;
+
+  // Initialise timeline year when entering timeline mode
+  useEffect(() => {
+    if (mode === "timeline" && layout.yearRange) {
+      if (timelineYear == null || timelineYear < layout.yearRange.min || timelineYear > layout.yearRange.max) {
+        setTimelineYear(layout.yearRange.max);
+      }
+    } else if (mode === "tree") {
+      // Stop playback when leaving timeline
+      setPlaying(false);
+    }
+  }, [mode, layout.yearRange]); // eslint-disable-line
+
+  // Auto-play
+  useEffect(() => {
+    if (!playing) {
+      if (playerRef.current) { clearInterval(playerRef.current); playerRef.current = null; }
+      return;
+    }
+    if (!layout.yearRange) return;
+    playerRef.current = setInterval(() => {
+      setTimelineYear(y => {
+        if (y == null) return layout.yearRange.min;
+        if (y >= layout.yearRange.max) {
+          setPlaying(false);
+          return layout.yearRange.max;
+        }
+        return y + 1;
+      });
+    }, 350);
+    return () => {
+      if (playerRef.current) clearInterval(playerRef.current);
+    };
+  }, [playing, layout.yearRange]);
 
   const handleAdd = useCallback((preset = null) => {
     setRelateTo(preset);
@@ -83,6 +122,21 @@ export default function FamilyTreeApp() {
     setFocusIntent({ type: "fit", center: bbox.center, size: bbox.size, ts: Date.now() });
   }, [layout]);
 
+  const toggleMode = useCallback(() => {
+    setMode(prev => {
+      const next = prev === "tree" ? "timeline" : "tree";
+      // Fit camera to new layout shortly after
+      setTimeout(() => {
+        const bbox = boundingBox(layout.nodes);
+        setFocusIntent({ type: "fit", center: bbox.center, size: bbox.size, ts: Date.now() });
+      }, 60);
+      return next;
+    });
+  }, [layout.nodes]);
+
+  const timelineActive = mode === "timeline";
+  const hasTimelineData = !!layout.yearRange;
+
   return (
     <div className="relative w-full h-screen overflow-hidden bg-[#0A0B10]" data-testid="family-tree-app">
       <div className="absolute inset-0 z-0">
@@ -93,6 +147,7 @@ export default function FamilyTreeApp() {
             selectedId={selectedId}
             onSelect={setSelectedId}
             focusIntent={focusIntent}
+            timelineYear={timelineActive ? timelineYear : null}
           />
         )}
       </div>
@@ -122,25 +177,57 @@ export default function FamilyTreeApp() {
         <SearchBar members={members} onPick={focusOnMember} />
       )}
 
-      {/* Counter */}
+      {/* Counter + Mode toggle */}
       {members.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="absolute top-6 right-6 z-40 glass rounded-full px-4 py-2 flex items-center gap-2"
-          data-testid="member-counter"
+          className="absolute top-6 right-6 z-40 flex items-center gap-2"
         >
-          <Sparkle size={14} weight="fill" color="#D4AF37" />
-          <span className="font-manrope text-xs tracking-wider text-white/80">
-            {members.length} {members.length === 1 ? "soul" : "souls"}
-          </span>
+          {hasTimelineData && (
+            <button
+              type="button"
+              onClick={toggleMode}
+              data-testid="mode-toggle-button"
+              title={timelineActive ? "Switch to family tree view" : "Switch to timeline view"}
+              className={`glass rounded-full px-3.5 py-2 flex items-center gap-2 transition-all hover:-translate-y-0.5 ${timelineActive ? "ring-1 ring-[#D4AF37]/40" : ""}`}
+            >
+              {timelineActive ? (
+                <Tree size={14} weight="duotone" color="#D4AF37" />
+              ) : (
+                <ClockCounterClockwise size={14} weight="duotone" color="#D4AF37" />
+              )}
+              <span className="font-manrope text-xs tracking-wider text-white/80">
+                {timelineActive ? "Tree" : "Timeline"}
+              </span>
+            </button>
+          )}
+          <div className="glass rounded-full px-4 py-2 flex items-center gap-2" data-testid="member-counter">
+            <Sparkle size={14} weight="fill" color="#D4AF37" />
+            <span className="font-manrope text-xs tracking-wider text-white/80">
+              {members.length} {members.length === 1 ? "soul" : "souls"}
+            </span>
+          </div>
         </motion.div>
       )}
 
       <AnimatePresence>
         {!loading && members.length === 0 && (
           <EmptyState onAdd={() => handleAdd(null)} />
+        )}
+      </AnimatePresence>
+
+      {/* Timeline scrubber */}
+      <AnimatePresence>
+        {timelineActive && hasTimelineData && (
+          <TimelineScrubber
+            year={timelineYear ?? layout.yearRange.max}
+            setYear={setTimelineYear}
+            range={layout.yearRange}
+            playing={playing}
+            onTogglePlay={() => setPlaying(p => !p)}
+          />
         )}
       </AnimatePresence>
 
@@ -214,4 +301,3 @@ export default function FamilyTreeApp() {
     </div>
   );
 }
-
