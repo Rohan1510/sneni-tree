@@ -9,6 +9,7 @@ import DarkCalendar from "./DarkCalendar";
 import { UserPlus, Trash, UploadSimple, PencilSimple, Heart, GitFork, ArrowDown, UsersThree, CalendarBlank, HeartStraight, Cross } from "@phosphor-icons/react";
 import { photoUrl } from "../lib/api";
 import { siblingsOf } from "../lib/layout";
+import EventsSection from "./EventsSection";
 import { format, parseISO } from "date-fns";
 
 const fieldStyle = "bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-[#D4AF37] focus-visible:border-[#D4AF37]";
@@ -295,6 +296,11 @@ export default function DetailsPanel({ open, member, members, onClose, onDelete,
               {children.map(c => <Chip key={c.id} member={c} onClick={() => onPickMember?.(c.id)} />)}
               <EmptyChip onClick={() => onAddRelated({ memberId: member.id, relation: "child" })} text="Add child" testId="add-child-button" />
             </Section>
+
+            <EventsSection
+              member={member}
+              onSave={(patch) => onSave(member.id, patch)}
+            />
           </div>
 
           {/* Delete */}

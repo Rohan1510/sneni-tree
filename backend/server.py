@@ -72,6 +72,16 @@ api_router = APIRouter(prefix="/api")
 
 # ============== MODELS ==============
 
+class LifeEvent(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    type: Literal["marriage", "education", "career", "migration", "other"] = "other"
+    year: int
+    title: str
+    location: Optional[str] = None
+    note: Optional[str] = None
+
+
 class MemberBase(BaseModel):
     model_config = ConfigDict(extra="ignore")
     name: str
@@ -83,6 +93,7 @@ class MemberBase(BaseModel):
     parent_ids: List[str] = Field(default_factory=list)
     partner_ids: List[str] = Field(default_factory=list)
     marriages: Dict[str, str] = Field(default_factory=dict)  # partner_id -> ISO date
+    events: List[LifeEvent] = Field(default_factory=list)
 
 
 class MemberCreate(MemberBase):
@@ -100,6 +111,7 @@ class MemberUpdate(BaseModel):
     parent_ids: Optional[List[str]] = None
     partner_ids: Optional[List[str]] = None
     marriages: Optional[Dict[str, str]] = None
+    events: Optional[List[LifeEvent]] = None
 
 
 class Member(MemberBase):

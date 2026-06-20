@@ -2,6 +2,7 @@ import React from "react";
 import { Html } from "@react-three/drei";
 import { Cross } from "@phosphor-icons/react";
 import { photoUrl } from "../lib/api";
+import { eventMeta } from "../lib/eventTypes";
 
 function initialsOf(name) {
   if (!name) return "?";
@@ -55,6 +56,11 @@ export default function MemberNode({ member, position, selected, onSelect, timel
   const by = yearOf(member.birth_date);
   const isJustBorn = timelineState === "alive" && by != null && Math.abs(timelineYear - by) <= 1;
 
+  // Life events that have occurred by the current timeline year
+  const visibleEvents = (member.events || [])
+    .filter(e => timelineYear == null ? false : e.year <= timelineYear)
+    .sort((a, b) => a.year - b.year);
+
   return (
     <group position={position}>
       <Html center distanceFactor={10} zIndexRange={[10, 0]} style={{ pointerEvents: "auto" }}>
@@ -64,25 +70,57 @@ export default function MemberNode({ member, position, selected, onSelect, timel
           className="group flex flex-col items-center select-none cursor-pointer transition-opacity duration-500"
           style={{ transform: "translate(-50%, -50%)", position: "absolute", opacity: wrapperOpacity }}
         >
-          <div className={`relative w-[88px] h-[88px] rounded-full overflow-hidden ${isJustBorn ? "ring-2 ring-[#D4AF37] shadow-[0_0_30px_rgba(212,175,55,0.5)]" : ring} transition-all duration-300 group-hover:ring-[#E5C07B] group-hover:scale-105 backdrop-blur-xl bg-gradient-to-br ${genderTint}`}>
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={member.name}
-                draggable={false}
-                className={`w-full h-full object-cover ${(deceased || timelineState === "past") ? "grayscale opacity-85" : ""}`}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center font-cormorant text-3xl font-light text-white/90">
-                {initialsOf(member.name)}
-              </div>
-            )}
-            <div className="absolute inset-0 rounded-full pointer-events-none" style={{
-              boxShadow: "inset 0 0 20px rgba(255,255,255,0.08)"
-            }} />
-            {(deceased || timelineState === "past") && (
-              <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/70 backdrop-blur-sm ring-1 ring-white/20 flex items-center justify-center" title="In memoriam">
-                <Cross size={9} weight="light" className="text-white/70" />
+          <div className="relative">
+            <div className={`relative w-[88px] h-[88px] rounded-full overflow-hidden ${isJustBorn ? "ring-2 ring-[#D4AF37] shadow-[0_0_30px_rgba(212,175,55,0.5)]" : ring} transition-all duration-300 group-hover:ring-[#E5C07B] group-hover:scale-105 backdrop-blur-xl bg-gradient-to-br ${genderTint}`}>
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={member.name}
+                  draggable={false}
+                  className={`w-full h-full object-cover ${(deceased || timelineState === "past") ? "grayscale opacity-85" : ""}`}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center font-cormorant text-3xl font-light text-white/90">
+                  {initialsOf(member.name)}
+                </div>
+              )}
+              <div className="absolute inset-0 rounded-full pointer-events-none" style={{
+                boxShadow: "inset 0 0 20px rgba(255,255,255,0.08)"
+              }} />
+              {(deceased || timelineState === "past") && (
+                <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/70 backdrop-blur-sm ring-1 ring-white/20 flex items-center justify-center" title="In memoriam">
+                  <Cross size={9} weight="light" className="text-white/70" />
+                </div>
+              )}
+            </div>
+
+            {/* Life event badges (only in timeline mode, only events that have happened by current year) */}
+            {visibleEvents.length > 0 && (
+              <div
+                data-testid={`member-events-${member.id}`}
+                className="absolute -right-2 top-0 flex flex-col gap-1"
+                style={{ transform: "translateX(100%)" }}
+              >
+                {visibleEvents.map((ev, idx) => {
+                  const meta = eventMeta(ev.type);
+                  const Icon = meta.icon;
+                  return (
+                    <div
+                      key={ev.id}
+                      title={`${ev.title} (${ev.year})${ev.location ? " — " + ev.location : ""}`}
+                      data-testid={`event-badge-${ev.id}`}
+                      className="event-badge-pop w-6 h-6 rounded-full flex items-center justify-center ring-1 backdrop-blur-md"
+                      style={{
+                        background: `${meta.color}26`,
+                        borderColor: `${meta.color}77`,
+                        boxShadow: `0 0 12px ${meta.color}55`,
+                        animationDelay: `${idx * 60}ms`,
+                      }}
+                    >
+                      <Icon size={11} weight="fill" color={meta.color} />
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
