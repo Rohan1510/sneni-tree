@@ -8,7 +8,7 @@ import uuid
 import requests
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Dict
 from datetime import datetime, timezone
 
 
@@ -77,10 +77,12 @@ class MemberBase(BaseModel):
     name: str
     gender: Literal["male", "female", "other"] = "other"
     birth_date: Optional[str] = None  # ISO date string YYYY-MM-DD
+    death_date: Optional[str] = None
     bio: Optional[str] = None
     photo_path: Optional[str] = None
     parent_ids: List[str] = Field(default_factory=list)
     partner_ids: List[str] = Field(default_factory=list)
+    marriages: Dict[str, str] = Field(default_factory=dict)  # partner_id -> ISO date
 
 
 class MemberCreate(MemberBase):
@@ -92,10 +94,12 @@ class MemberUpdate(BaseModel):
     name: Optional[str] = None
     gender: Optional[Literal["male", "female", "other"]] = None
     birth_date: Optional[str] = None
+    death_date: Optional[str] = None
     bio: Optional[str] = None
     photo_path: Optional[str] = None
     parent_ids: Optional[List[str]] = None
     partner_ids: Optional[List[str]] = None
+    marriages: Optional[Dict[str, str]] = None
 
 
 class Member(MemberBase):
@@ -136,12 +140,13 @@ async def create_member(payload: MemberCreate):
     member = Member(**payload.model_dump())
     await db.members.insert_one(member.model_dump())
 
-    # Mirror partner relationship
+    # Mirror partner relationship + marriage dates
     for pid in member.partner_ids:
-        await db.members.update_one(
-            {"id": pid},
-            {"$addToSet": {"partner_ids": member.id}}
-        )
+        update = {"$addToSet": {"partner_ids": member.id}}
+        m_date = member.marriages.get(pid)
+        if m_date:
+            update["$set"] = {f"marriages.{member.id}": m_date}
+        await db.members.update_one({"id": pid}, update)
 
     return member
 
@@ -182,6 +187,13 @@ async def update_member(member_id: str, payload: MemberUpdate):
             await db.members.update_one({"id": pid}, {"$addToSet": {"partner_ids": member_id}})
         for pid in old_partners - new_set:
             await db.members.update_one({"id": pid}, {"$pull": {"partner_ids": member_id}})
+            await db.members.update_one({"id": pid}, {"$unset": {f"marriages.{member_id}": ""}})
+
+    # Sync marriage dates to partners (mirror)
+    if "marriages" in update_data:
+        marriages = update_data["marriages"] or {}
+        for pid, mdate in marriages.items():
+            await db.members.update_one({"id": pid}, {"$set": {f"marriages.{member_id}": mdate}})
 
     updated = await db.members.find_one({"id": member_id}, {"_id": 0})
     return updated
@@ -195,6 +207,7 @@ async def delete_member(member_id: str):
 
     # Remove this member from others' references
     await db.members.update_many({}, {"$pull": {"parent_ids": member_id, "partner_ids": member_id}})
+    await db.members.update_many({}, {"$unset": {f"marriages.{member_id}": ""}})
     await db.members.delete_one({"id": member_id})
     return {"deleted": member_id}
 

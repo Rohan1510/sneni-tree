@@ -6,6 +6,7 @@ import Scene3D from "./Scene3D";
 import AddMemberDialog from "./AddMemberDialog";
 import DetailsPanel from "./DetailsPanel";
 import EmptyState from "./EmptyState";
+import SearchBar from "./SearchBar";
 import { listMembers, deleteMember, uploadPhoto, updateMember } from "../lib/api";
 import { computeLayout } from "../lib/layout";
 
@@ -14,7 +15,8 @@ export default function FamilyTreeApp() {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [relateTo, setRelateTo] = useState(null); // { memberId, relation } when adding via context
+  const [relateTo, setRelateTo] = useState(null);
+  const [focusTarget, setFocusTarget] = useState(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -68,9 +70,16 @@ export default function FamilyTreeApp() {
     }
   }, [refresh]);
 
+  const focusOnMember = useCallback((id) => {
+    const pos = layout.nodes[id];
+    if (!pos) return;
+    setSelectedId(id);
+    // Trigger a fresh focus target reference even if same id
+    setFocusTarget({ ...pos, _k: Math.random() });
+  }, [layout.nodes]);
+
   return (
     <div className="relative w-full h-screen overflow-hidden bg-[#0A0B10]" data-testid="family-tree-app">
-      {/* 3D Scene */}
       <div className="absolute inset-0 z-0">
         {members.length > 0 && (
           <Scene3D
@@ -78,15 +87,15 @@ export default function FamilyTreeApp() {
             layout={layout}
             selectedId={selectedId}
             onSelect={setSelectedId}
+            focusTarget={focusTarget}
           />
         )}
       </div>
 
-      {/* Vignette + Grain */}
       <div className="vignette" />
       <div className="grain-overlay" />
 
-      {/* Top-left brand */}
+      {/* Brand */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -103,7 +112,12 @@ export default function FamilyTreeApp() {
         </div>
       </motion.div>
 
-      {/* Top-right counter */}
+      {/* Search */}
+      {members.length > 0 && (
+        <SearchBar members={members} onPick={focusOnMember} />
+      )}
+
+      {/* Counter */}
       {members.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -119,14 +133,12 @@ export default function FamilyTreeApp() {
         </motion.div>
       )}
 
-      {/* Empty state */}
       <AnimatePresence>
         {!loading && members.length === 0 && (
           <EmptyState onAdd={() => handleAdd(null)} />
         )}
       </AnimatePresence>
 
-      {/* Bottom floating toolbar */}
       {members.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -145,23 +157,26 @@ export default function FamilyTreeApp() {
         </motion.div>
       )}
 
-      {/* Bottom hint */}
       {members.length > 0 && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-40 text-white/30 text-[10px] tracking-[0.3em] uppercase font-manrope pointer-events-none">
           drag · scroll · click a node
         </div>
       )}
 
-      {/* Add member dialog */}
       <AddMemberDialog
         open={addOpen}
         onOpenChange={setAddOpen}
         members={members}
         preset={relateTo}
-        onCreated={() => { refresh(); setAddOpen(false); setRelateTo(null); }}
+        onCreated={(keepOpen) => {
+          refresh();
+          if (!keepOpen) {
+            setAddOpen(false);
+            setRelateTo(null);
+          }
+        }}
       />
 
-      {/* Details panel */}
       <DetailsPanel
         open={!!selectedId}
         member={selected}
@@ -171,6 +186,7 @@ export default function FamilyTreeApp() {
         onUploadPhoto={handlePhotoUpload}
         onSave={handleSave}
         onAddRelated={(preset) => { setSelectedId(null); handleAdd(preset); }}
+        onPickMember={(id) => focusOnMember(id)}
       />
 
       <Toaster position="top-center" theme="dark" toastOptions={{

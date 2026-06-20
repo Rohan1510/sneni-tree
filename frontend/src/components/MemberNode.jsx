@@ -1,7 +1,7 @@
 import React from "react";
 import { Html } from "@react-three/drei";
+import { Cross } from "@phosphor-icons/react";
 import { photoUrl } from "../lib/api";
-import { UserCircle } from "@phosphor-icons/react";
 
 function initialsOf(name) {
   if (!name) return "?";
@@ -10,21 +10,24 @@ function initialsOf(name) {
 
 export default function MemberNode({ member, position, selected, onSelect }) {
   const avatarUrl = photoUrl(member.photo_path);
-  const ring = selected ? "ring-2 ring-[#D4AF37] shadow-[0_0_40px_rgba(212,175,55,0.6)]" : "ring-1 ring-white/15";
+  const ring = selected
+    ? "ring-2 ring-[#D4AF37] shadow-[0_0_40px_rgba(212,175,55,0.6)]"
+    : "ring-1 ring-white/15";
   const genderTint = member.gender === "female"
     ? "from-rose-200/10 to-rose-400/5"
     : member.gender === "male"
     ? "from-sky-200/10 to-indigo-400/5"
     : "from-white/10 to-white/5";
 
+  const deceased = !!member.death_date;
+  const yearLine = [
+    member.birth_date ? `b. ${member.birth_date.slice(0, 4)}` : null,
+    member.death_date ? `d. ${member.death_date.slice(0, 4)}` : null,
+  ].filter(Boolean).join(" — ");
+
   return (
     <group position={position}>
-      <Html
-        center
-        distanceFactor={10}
-        zIndexRange={[10, 0]}
-        style={{ pointerEvents: "auto" }}
-      >
+      <Html center distanceFactor={10} zIndexRange={[10, 0]} style={{ pointerEvents: "auto" }}>
         <button
           onClick={(e) => { e.stopPropagation(); onSelect(); }}
           data-testid={`member-node-${member.id}`}
@@ -36,26 +39,30 @@ export default function MemberNode({ member, position, selected, onSelect }) {
               <img
                 src={avatarUrl}
                 alt={member.name}
-                className="w-full h-full object-cover"
                 draggable={false}
+                className={`w-full h-full object-cover ${deceased ? "grayscale opacity-85" : ""}`}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center font-cormorant text-3xl font-light text-white/90">
                 {initialsOf(member.name)}
               </div>
             )}
-            {/* Inner glow */}
             <div className="absolute inset-0 rounded-full pointer-events-none" style={{
               boxShadow: "inset 0 0 20px rgba(255,255,255,0.08)"
             }} />
+            {deceased && (
+              <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/70 backdrop-blur-sm ring-1 ring-white/20 flex items-center justify-center" title="In memoriam">
+                <Cross size={9} weight="light" className="text-white/70" />
+              </div>
+            )}
           </div>
-          <div className="mt-3 text-center px-2 py-1 rounded-md glass max-w-[140px]">
+          <div className="mt-3 text-center px-2 py-1 rounded-md glass max-w-[150px]">
             <div className="font-cormorant text-base leading-tight text-white whitespace-nowrap overflow-hidden text-ellipsis">
               {member.name}
             </div>
-            {member.birth_date && (
+            {yearLine && (
               <div className="font-manrope text-[9px] tracking-[0.2em] text-white/50 uppercase mt-0.5">
-                b. {member.birth_date.slice(0, 4)}
+                {yearLine}
               </div>
             )}
           </div>

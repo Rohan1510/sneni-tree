@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 2 - All new features (death_date, marriages dict mirror, marriage cleanup on delete, sibling relation, search bar w/ camera focus, dark calendar, add-another batch mode, deceased indicator, marriage badge, editable birth/death in details panel) verified end-to-end. Backend: 21/21 pytest tests pass (5 new tests for death_date persistence, partner marriage mirror on create, marriage mirror on patch, marriage cleanup on delete). Frontend: e2e Playwright verified all 13 acceptance criteria from the review request.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "WebGL canvas", "issues": ["Non-functional console performance warning: 'GPU stall due to ReadPixels'. Browser-level warning from R3F/Three.js, not a bug; doesn't affect rendering."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_members_api.py",
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py update_member marriages sync: only mirrors NEW marriage entries on PATCH (adds f'marriages.{member_id}' on partner side). If the client REMOVES a marriage key from the dict and PATCHes, the mirror entry on the partner is NOT removed because update_data only stores the new dict and we don't diff old vs new keys. Low risk because UI doesn't expose removing marriage dates yet, but worth a follow-up if that flow is added.",
+    "AddMemberDialog.jsx: when 'Add another' is enabled and a sibling is being batch-added repeatedly, parent_ids snapshot is re-derived from target each loop (good). targetId is preserved across batch submits (good).",
+    "DetailsPanel.jsx: siblings list is derived only by parent overlap; half-siblings (sharing one parent) are correctly included. Good.",
+    "Scene3D sibling edges (faint blue dashed) and partner edges (dashed gold) confirmed visible in screenshot.",
+    "Search bar correctly hides for <2 members and uses absolute top-6 left-1/2 positioning - works with brand+counter layout.",
+    "DateField calendar uses Popover with dark bg (#0A0B10/95) - confirmed dark, NOT default shadcn white."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features.py"
+  ],
+  "success_rate": {"backend": "100% (21/21)", "frontend": "100%"},
+  "test_credentials": "N/A - no auth in app",
+  "seed_data_creation": "All TEST_-prefixed members created during testing have been cleaned up via API. DB should be clean.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Two pytest files: test_members_api.py (16 baseline CRUD/photo tests) + test_new_features.py (5 new feature tests: death_date create/patch, marriage mirror on create, marriage mirror on patch, marriage cleanup on delete). Both self-clean TEST_ prefixed data. Frontend covered with playwright: empty state -> first member -> partner+marriage -> search bar appears with 2+ members -> search result click focuses camera (CameraController in Scene3D animates to focusTarget) -> add-another keeps dialog open and clears name -> sibling relation copies parent_ids -> details panel shows Siblings section, marriage badge (heart+year), deceased cross indicator, b./d. years inline. Dark calendar verified dark (bg=#0A0B10/95) not shadcn white.",
+  "rca of the issue": "N/A - no bugs found."
+}

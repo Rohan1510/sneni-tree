@@ -1,14 +1,10 @@
-// Compute 3D positions for a family tree, plus the edges to draw.
-// Generation (y): older generation = positive y, younger = negative y.
-// Strategy:
-//  1. BFS from first member, assigning generations (parents +1, children -1, partners +0)
-//  2. Group by generation, cluster partners adjacent, spread along x
-//  3. Add small z variance for depth
+// Compute 3D positions for a family tree and edges to draw.
+//  - Generations: BFS from first member. Parents = +1, partners = same, children = -1.
+//  - Within each generation: cluster by parent-set so siblings sit adjacent, then keep partners next to each other.
+//  - Edges: parent-child, partner, sibling (shared parents).
 
 export function computeLayout(members) {
-  if (!members || members.length === 0) {
-    return { nodes: {}, edges: [] };
-  }
+  if (!members || members.length === 0) return { nodes: {}, edges: [] };
 
   const byId = Object.fromEntries(members.map(m => [m.id, m]));
   const generations = {};
@@ -47,11 +43,7 @@ export function computeLayout(members) {
       }
     }
   }
-
-  // Disconnected nodes -> place at gen 0
-  for (const m of members) {
-    if (!visited.has(m.id)) generations[m.id] = 0;
-  }
+  for (const m of members) if (!visited.has(m.id)) generations[m.id] = 0;
 
   // Group by generation
   const byGen = {};
@@ -67,17 +59,27 @@ export function computeLayout(members) {
 
   for (const [gStr, list] of Object.entries(byGen)) {
     const g = Number(gStr);
-    // Order: cluster partners adjacent
+    // Cluster by parent set so siblings are adjacent
+    const groups = new Map(); // key: sorted parent ids -> [members]
+    for (const m of list) {
+      const key = (m.parent_ids || []).slice().sort().join("|") || "_orphan";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(m);
+    }
+
     const ordered = [];
     const used = new Set();
-    for (const m of list) {
-      if (used.has(m.id)) continue;
-      ordered.push(m);
-      used.add(m.id);
-      for (const pid of m.partner_ids || []) {
-        if (!used.has(pid) && byId[pid] && generations[pid] === g) {
-          ordered.push(byId[pid]);
-          used.add(pid);
+    for (const group of groups.values()) {
+      for (const m of group) {
+        if (used.has(m.id)) continue;
+        ordered.push(m);
+        used.add(m.id);
+        // Place partners right after, even if in different sibling group
+        for (const pid of m.partner_ids || []) {
+          if (!used.has(pid) && byId[pid] && generations[pid] === g) {
+            ordered.push(byId[pid]);
+            used.add(pid);
+          }
         }
       }
     }
@@ -93,18 +95,37 @@ export function computeLayout(members) {
 
   // Edges
   const edges = [];
+
+  // Parent → child
   for (const m of members) {
     for (const pid of m.parent_ids || []) {
       if (byId[pid]) edges.push({ from: pid, to: m.id, type: "parent" });
     }
   }
-  const seen = new Set();
+
+  // Partner (undirected, deduped)
+  const seenP = new Set();
   for (const m of members) {
     for (const pid of m.partner_ids || []) {
       const k = [m.id, pid].sort().join("|");
-      if (seen.has(k)) continue;
-      seen.add(k);
+      if (seenP.has(k)) continue;
+      seenP.add(k);
       if (byId[pid]) edges.push({ from: m.id, to: pid, type: "partner" });
+    }
+  }
+
+  // Siblings: share at least one parent. Only between members with parents.
+  const seenS = new Set();
+  const withParents = members.filter(m => (m.parent_ids || []).length > 0);
+  for (let i = 0; i < withParents.length; i++) {
+    for (let j = i + 1; j < withParents.length; j++) {
+      const a = withParents[i], b = withParents[j];
+      const sharedParent = (a.parent_ids || []).some(p => (b.parent_ids || []).includes(p));
+      if (!sharedParent) continue;
+      const k = [a.id, b.id].sort().join("|");
+      if (seenS.has(k)) continue;
+      seenS.add(k);
+      edges.push({ from: a.id, to: b.id, type: "sibling" });
     }
   }
 
