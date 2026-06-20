@@ -158,10 +158,12 @@ export function computeLayout(members, mode = "tree") {
       if (generations[pid] !== generations[m.id]) continue;
       const dx = Math.abs(nodes[m.id].x - nodes[pid].x);
       if (dx > SPACING_X * 1.6) {
-        // The partner without parents (or fewer parents) shifts next to the other
+        // The partner without parents (or fewer parents) shifts next to the other.
+        // Deterministic tie-break: left if anchor.id < mover.id (string compare), else right.
         const moveOther = (byId[pid].parent_ids || []).length <= (m.parent_ids || []).length ? pid : m.id;
         const anchor = moveOther === pid ? m.id : pid;
-        const targetX = nodes[anchor].x + PARTNER_DX * (Math.random() > 0.5 ? 1 : -1);
+        const goRight = anchor < moveOther;
+        const targetX = nodes[anchor].x + PARTNER_DX * (goRight ? 1 : -1);
         nodes[moveOther].x = targetX;
       }
     }

@@ -34,6 +34,7 @@
 - **NEW — Life events**: each member can have a list of events (marriage / education / career / migration / other) with type, year, title and optional location. Events are managed inline in the Details panel and **pop in as small color-coded badges next to the member's 3D node when the timeline scrubber crosses their year**, with a spring-pop animation.
 - **NEW — 1-tap milestone templates**: Born / Married / Career / Passed chips in the Events section instantly add a prefilled event (uses birth_date / first partner / birthYear+22 / death_date as the date heuristic). Chips disable themselves when prerequisites are missing or the milestone already exists.
 - **NEW — Cinema mode**: full-screen short-film playback. Hides all chrome, shows a huge gold-typography year, auto-advances ~400ms/year (4s/decade), and animates color-coded event caption cards as the playhead crosses each event's year. Play/Pause toggle and Exit X in the overlay; ESC also exits.
+- **NEW — Hierarchical Tree layout**: parents sit ABOVE children with elbow-style (vertical-horizontal-vertical) connectors — classic family-tree look. Multi-component BFS handles disconnected sub-families/orphans. Partner connectors remain short dashed gold; Timeline mode retains organic bezier curves for the constellation aesthetic.
 - Tested end-to-end: 100% backend (28/28), 100% frontend acceptance.
 
 ## P1 backlog
