@@ -22,12 +22,19 @@
 
 ## Implemented (2026-02)
 - Empty-state onboarding flow ("Begin your lineage").
-- Add member dialog with relation selector (standalone | child of | parent of | partner of) + photo upload + birth date picker.
+- Add member dialog with relation selector (standalone | child of | parent of | partner of | **sibling of**) + photo upload + birth date picker.
 - 3D interactive scene with OrbitControls, sparkles, fog, vignette, grain overlay.
 - Member nodes as circular HTML cards inside the 3D scene with gold selected ring.
-- Connection lines: solid for parent-child, dashed for partner; highlighted when a node is selected.
-- Right-side glass Sheet with member details, in-place name/bio edit, photo replace, parents/partners/children chips, and removal flow.
-- Tested end-to-end: 100% backend (16/16), 100% frontend.
+- Connection lines: solid for parent-child, dashed gold for partner, dashed faint blue for siblings; highlighted when a node is selected.
+- Right-side glass Sheet with member details, in-place name/bio/birth/death edit, photo replace, parents/partners/siblings/children chips, and removal flow.
+- **NEW**: Dark-themed calendar (DarkCalendar.jsx) matching the cinematic aesthetic — gold-accented selected day on dark glass background.
+- **NEW**: Death dates per member + deceased indicator (cross badge + grayscale avatar).
+- **NEW**: Marriage dates per partner (mirrored both ways, cleaned up on delete) — shown as heart-badge year next to partner chips.
+- **NEW**: Sibling relation in the Add dialog (inherits target's parent_ids).
+- **NEW**: Sibling visualization — siblings sharing a parent are connected with faint blue dashed lines and clustered together in the generation row.
+- **NEW**: Top-center SearchBar with live results + camera focus animation (CameraController lerps camera to the picked node).
+- **NEW**: "Keep open to add another" checkbox for batch-adding multiple children/siblings/partners.
+- Tested end-to-end: 100% backend (21/21), 100% frontend acceptance.
 
 ## P1 backlog
 - Member search / pin / focus camera on member.
