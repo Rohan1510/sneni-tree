@@ -31,7 +31,8 @@
 - "Keep open to add another" checkbox for batch-adding multiple children/siblings/partners.
 - "Fit to screen" camera reset button.
 - **NEW — Timeline mode**: Mode toggle (Tree ↔ Timeline). In timeline mode members are re-positioned along the Z-axis by birth year, a gold themed scrubber with Play/Rewind/Forward controls lets the user scrub or auto-play through the years. Members born after the current year fade out, deceased members go grayscale, the just-born member gets a gold halo ring.
-- Tested end-to-end: 100% backend (21/21), 100% frontend acceptance (timeline 7/7 acceptance criteria).
+- **NEW — Life events**: each member can have a list of events (marriage / education / career / migration / other) with type, year, title and optional location. Events are managed inline in the Details panel and **pop in as small color-coded badges next to the member's 3D node when the timeline scrubber crosses their year**, with a spring-pop animation.
+- Tested end-to-end: 100% backend (28/28), 100% frontend acceptance (9/9 life-events criteria).
 
 ## P1 backlog
 - Member search / pin / focus camera on member.
