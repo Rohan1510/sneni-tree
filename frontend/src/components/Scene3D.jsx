@@ -89,11 +89,12 @@ function CameraController({ intent }) {
       const c = intent.center;
       const size = Math.max(intent.size, 8);
       const fov = camera.fov * (Math.PI / 180);
-      const distance = (size / 2) / Math.tan(fov / 2) * 1.1 + 4;
-      const dz = distance * 0.85;
+      const distance = (size / 2) / Math.tan(fov / 2) * 0.85 + 2;
+      const dz = distance * 0.7;
       const dx = distance * 0.25;
+      const dy = distance * 0.15;
       targetRef.current.set(c.x, c.y, c.z);
-      desiredRef.current.set(c.x + dx, c.y, c.z + dz);
+      desiredRef.current.set(c.x + dx, c.y + dy, c.z + dz);
     } else {
       return;
     }
