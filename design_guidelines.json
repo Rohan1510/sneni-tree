@@ -1,0 +1,98 @@
+{
+  "theme": "dark",
+  "archetype": "Archetype 5: Luxury",
+  "concept": "Constellation of Memories. The family tree is rendered as floating glass nodes in a cinematic, dark void. Connections are glowing, elegant curved lines. The UI floats over the canvas as milled crystal (Glassmorphism).",
+  "colors": {
+    "background_primary": "#0A0B10",
+    "background_secondary": "#12141D",
+    "surface_glass": "rgba(10, 11, 16, 0.6)",
+    "surface_glass_light": "rgba(255, 255, 255, 0.05)",
+    "border_glass": "rgba(255, 255, 255, 0.1)",
+    "text_primary": "#FFFFFF",
+    "text_secondary": "#A0A5B5",
+    "accent_primary": "#D4AF37",
+    "accent_hover": "#E5C07B",
+    "line_color": "rgba(255, 255, 255, 0.15)",
+    "danger": "#EF4444"
+  },
+  "typography": {
+    "headings": {
+      "family": "Cormorant Garamond, serif",
+      "weights": ["300", "400", "600"],
+      "usage": "Use font-light or font-normal. tracking-tight for H1/H2."
+    },
+    "body": {
+      "family": "Manrope, sans-serif",
+      "weights": ["400", "500"],
+      "usage": "Use tracking-wide for overlines/labels."
+    },
+    "scales": {
+      "h1": "text-4xl sm:text-5xl",
+      "h2": "text-3xl sm:text-4xl",
+      "h3": "text-xl sm:text-2xl",
+      "body": "text-base",
+      "small": "text-sm"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-2xl bg-black/60 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]",
+    "texture": "Add a full-screen pointer-events-none fixed div over the whole app with the cinematic grain texture (mix-blend-overlay, opacity-30) to kill the digital flatness.",
+    "lighting": "In R3F, use ambient light (intensity 0.5) and a directional light to give volume to any 3D elements."
+  },
+  "grids_and_layouts": {
+    "app_structure": "Canvas takes 100vw, 100vh. UI elements are absolute positioned over the canvas with z-10.",
+    "ui_panels": "Right-side sliding panel (w-full md:w-96) for Member Details. Bottom floating toolbar for global actions. Top-left logo/title.",
+    "bento_empty_state": "Center floating glass card. Mode A: Grid-cols-1, p-12, flex-col, items-center. Generous spacing (gap-8)."
+  },
+  "3d_scene_guidelines": {
+    "library": "React Three Fiber (@react-three/fiber) + Drei (@react-three/drei)",
+    "controls": "OrbitControls (enableDamping=true, make dampingFactor low for premium feel).",
+    "nodes": "Use Drei's Html components for nodes to ensure text/photos always face the camera. Nodes should be circular, with a subtle white/10 border. DO NOT use 3D geometry for text.",
+    "connections": "Use Drei's QuadraticBezierLine or Line for connections. Curved lines feel more organic than straight lines.",
+    "environment": "Use Drei's Sparkles (count 200, scale 20, size 2, speed 0.2) to simulate dust/stars in the background."
+  },
+  "components": {
+    "buttons": "Flat solid surfaces or glass. Primary CTA: bg-[#D4AF37] text-black hover:bg-[#E5C07B]. Secondary: glassmorphic.",
+    "inputs": "Shadcn UI inputs but overridden: bg-white/5 border-white/10 text-white focus:border-[#D4AF37].",
+    "modals": "Use Shadcn Dialog/Sheet, but remove the default white background. Apply the glassmorphism rules.",
+    "icons": "Use @phosphor-icons/react (weight='duotone' or 'light')."
+  },
+  "motion": {
+    "ui_transitions": "Framer Motion for UI panels (initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}).",
+    "hover_states": "Buttons lift slightly (-translate-y-0.5) and increase border opacity."
+  },
+  "accessibility": {
+    "contrast": "Text must be readable over the dark glass. Ensure #A0A5B5 on black meets APCA standards.",
+    "testing": "All interactive elements must have data-testid attributes (e.g., data-testid='add-member-button', data-testid='member-node')."
+  },
+  "media": {
+    "texture_grain": {
+      "url": "https://images.unsplash.com/photo-1602475063211-3d98d60e3b1f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwxfHxjaW5lbWF0aWMlMjBkYXJrJTIwYWJzdHJhY3QlMjB0ZXh0dXJlJTIwZ3JhaW58ZW58MHx8fHwxNzgxOTIyMzIxfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Full screen cinematic grain overlay (opacity 10-20%, mix-blend-overlay)",
+      "usage": "overlay"
+    },
+    "placeholder_female": {
+      "url": "https://images.unsplash.com/photo-1506863530036-1efeddceb993?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzR8MHwxfHNlYXJjaHwxfHxtb25vY2hyb21lJTIwcG9ydHJhaXQlMjBmYWNlJTIwcGhvdG9ncmFwaHl8ZW58MHx8fHwxNzgxOTIyMzQ0fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Elegant monochrome female portrait for mock data",
+      "usage": "node_avatar"
+    },
+    "placeholder_male": {
+      "url": "https://images.unsplash.com/photo-1587397845856-e6cf49176c70?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzR8MHwxfHNlYXJjaHwyfHxtb25vY2hyb21lJTIwcG9ydHJhaXQlMjBmYWNlJTIwcGhvdG9ncmFwaHl8ZW58MHx8fHwxNzgxOTIyMzQ0fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Elegant monochrome male portrait for mock data",
+      "usage": "node_avatar"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Install required dependencies: yarn add @phosphor-icons/react three @react-three/fiber @react-three/drei framer-motion date-fns",
+    "Note: Files must be .jsx or .js (no .tsx). Ensure you use standard JS module exports.",
+    "Install Google Fonts in index.css: @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Manrope:wght@400;500&display=swap');",
+    "Configure tailwind.config.js to include font families: 'cormorant': ['Cormorant Garamond', 'serif'], 'manrope': ['Manrope', 'sans-serif'].",
+    "Do NOT use HTML inputs for Date or Selects. If building a form for adding a member, use custom styled components or pure Tailwind styling that matches the glassmorphic theme.",
+    "The 3D Scene must have a transparent or very dark background (#0A0B10) with Drei Sparkles for a magical dust effect.",
+    "Implement the family tree layout logic using a basic hierarchy tree algorithm to compute 3D positions (x, y, z) so nodes don't overlap. Root member at center, children below/outward, parents above.",
+    "Use R3F's <Html> component inside the 3D scene to render the node avatars as DOM elements, making it easier to handle clicks, hover states, and displaying the uploaded photos. Apply border-radius 50% to make them circular.",
+    "The UI layer must be absolute positioned over the <Canvas> component. Do NOT put the UI inside the 3D canvas.",
+    "Apply the film grain texture image as a fixed fullscreen overlay with pointer-events-none and low opacity to give it a Godly/Awwwards cinematic feel.",
+    "Add data-testid attributes to all interactive elements."
+  ]
+}
