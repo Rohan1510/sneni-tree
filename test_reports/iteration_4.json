@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration 4 retest of two specific fixes. (1) Hint text fix VERIFIED - bottom hint reads exactly 'drag · pinch · two-finger pan'. (2) Canvas touch-action fix FAILED to take effect. The CSS rule 'canvas[data-testid=\"three-canvas\"] { touch-action: none !important; }' in index.css does NOT match any element because R3F's <Canvas> component applies the data-testid prop to the WRAPPER <div>, not the underlying <canvas> element. The actual <canvas> still has inline 'touch-action: auto' (written by R3F) and computed 'touch-action: auto'. All other iteration-3 features remain passing (HALF badge, fit-to-screen, search/focus, no ReferenceError, half-vs-full sibling edges).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Scene3D.jsx + index.css canvas touch-action rule",
+        "issue": "CSS selector 'canvas[data-testid=\"three-canvas\"]' matches NOTHING. R3F's <Canvas> places data-testid on a wrapper <div>, not on the <canvas> child. Verified in DOM: document.querySelectorAll('canvas[data-testid=\"three-canvas\"]') returns 0 elements. The actual <canvas> element has inline style 'display: block; width: 1920px; height: 1080px; touch-action: auto;' and computedStyle.touchAction = 'auto'. Mobile single-finger pan on the canvas will scroll the page instead of rotating the orbit.",
+        "selector": "canvas[data-testid='three-canvas']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_3.json"],
+  "action_items": [
+    "Fix the canvas touch-action CSS selector. Options that will actually work: (A) Use a descendant selector that targets the canvas inside the wrapper: '[data-testid=\"three-canvas\"] canvas { touch-action: none !important; }'. (B) Wrap <Canvas> in <div style={{touchAction:\"none\", width:\"100%\", height:\"100%\"}}> and keep R3F default. (C) Use a ref+useEffect: useEffect(() => { const c = wrapperRef.current?.querySelector('canvas'); if (c) c.style.touchAction='none'; }, [members]). Option A is the smallest diff and is verified by the wrapper div already existing.",
+    "Optional: also add a global 'canvas { touch-action: none; }' as a defensive fallback for this app (the page has only the R3F canvas)."
+  ],
+  "critical_code_review_comments": [
+    "R3F prop pass-through behavior is non-obvious: style and data-* attributes go to the wrapper div, not the canvas child. This is a recurring footgun. Document or wrap to make canvas-specific styling explicit.",
+    "Hint label change (line 175 in FamilyTreeApp.jsx) is clean and verified.",
+    "focusIntent rename from earlier iteration is preserved correctly (line 19, 77, 83, 95)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (unchanged)", "frontend": "1 of 2 specific fixes verified (hint=PASS, touch-action=FAIL); all previously-passing features still pass"},
+  "test_credentials": "N/A - no auth",
+  "seed_data_creation": "5 TEST_-prefixed members were already present in DB from prior testing iterations (TEST_ParentA, TEST_ParentB, TEST_ChildC=full, TEST_HalfD=half, TEST_FullE=full). Re-used; not cleaned up so retest can re-verify quickly.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Only the canvas touch-action fix remains broken. To verify the fix, run in browser console: const c = document.querySelector('canvas'); getComputedStyle(c).touchAction === 'none'. The wrapper div with data-testid=three-canvas already has touch-action:none (inherited from Canvas's style prop) but the actual <canvas> has its own inline style:auto which overrides. Use descendant selector '[data-testid=\"three-canvas\"] canvas' in the CSS rule to fix.",
+  "rca of the issue": "RCA: index.css rule was written assuming the data-testid='three-canvas' attribute lives on the <canvas> element. In @react-three/fiber, the Canvas component renders a wrapping <div> that receives the user-supplied style, className, and data-* attributes; the actual <canvas> child is created internally and styled inline by R3F with display:block, width, height, and touch-action:auto. Therefore the selector 'canvas[data-testid=\"three-canvas\"]' matches zero nodes and the rule has no effect. Reproduction: open app with at least one member, run document.querySelector('canvas[data-testid=\"three-canvas\"]') => null; document.querySelector('canvas').style.touchAction => 'auto'. Mitigation: change selector to descendant form '[data-testid=\"three-canvas\"] canvas { touch-action: none !important; }' or apply touch-action directly via JS to the canvas element."
+}

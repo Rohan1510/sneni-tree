@@ -40,6 +40,11 @@ html, body, #root {
     background: radial-gradient(circle at center, transparent 40%, rgba(0,0,0,0.55) 100%);
 }
 
+/* Three.js canvas: disable browser touch gestures so OrbitControls handles them */
+canvas[data-testid="three-canvas"] {
+    touch-action: none !important;
+}
+
 .glass {
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);

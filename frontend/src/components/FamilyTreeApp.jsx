@@ -172,7 +172,7 @@ export default function FamilyTreeApp() {
 
       {members.length > 0 && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-40 text-white/30 text-[10px] tracking-[0.3em] uppercase font-manrope pointer-events-none">
-          drag · scroll · click a node
+          drag · pinch · two-finger pan
         </div>
       )}
 
