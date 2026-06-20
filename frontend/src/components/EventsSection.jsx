@@ -47,8 +47,9 @@ export default function EventsSection({ member, onSave, members }) {
     onSave({ events: (member.events || []).filter(e => e.id !== eventId) });
   };
 
-  // Existing event types already recorded so we don't double-add
-  const hasType = (t) => (member.events || []).some(e => e.type === t);
+  // Existing milestone titles already recorded so we don't double-add
+  const hasMilestoneTitle = (titleStr) =>
+    (member.events || []).some(e => (e.title || "").toLowerCase() === titleStr.toLowerCase());
   const birthY = yearOf(member.birth_date);
   const deathY = yearOf(member.death_date);
   const partnerObjects = (member.partner_ids || [])
@@ -63,7 +64,7 @@ export default function EventsSection({ member, onSave, members }) {
       label: "Born",
       icon: Baby,
       color: "#D4AF37",
-      ready: birthY != null && !hasType("born-marker"),
+      ready: birthY != null && !hasMilestoneTitle("Born"),
       disabledReason: birthY == null ? "Set a birth date first" : "Already added",
       onTap: () => {
         if (birthY == null) return;
@@ -116,8 +117,8 @@ export default function EventsSection({ member, onSave, members }) {
       label: "Passed",
       icon: Cross,
       color: "#9B82C9",
-      ready: deathY != null && !hasType("passed-marker"),
-      disabledReason: deathY == null ? "Set a passing date first" : null,
+      ready: deathY != null && !hasMilestoneTitle("Passed away"),
+      disabledReason: deathY == null ? "Set a passing date first" : "Already added",
       onTap: () => {
         if (deathY == null) return;
         pushEvents({

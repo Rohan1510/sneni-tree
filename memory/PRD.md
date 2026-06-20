@@ -32,7 +32,9 @@
 - "Fit to screen" camera reset button.
 - **NEW — Timeline mode**: Mode toggle (Tree ↔ Timeline). In timeline mode members are re-positioned along the Z-axis by birth year, a gold themed scrubber with Play/Rewind/Forward controls lets the user scrub or auto-play through the years. Members born after the current year fade out, deceased members go grayscale, the just-born member gets a gold halo ring.
 - **NEW — Life events**: each member can have a list of events (marriage / education / career / migration / other) with type, year, title and optional location. Events are managed inline in the Details panel and **pop in as small color-coded badges next to the member's 3D node when the timeline scrubber crosses their year**, with a spring-pop animation.
-- Tested end-to-end: 100% backend (28/28), 100% frontend acceptance (9/9 life-events criteria).
+- **NEW — 1-tap milestone templates**: Born / Married / Career / Passed chips in the Events section instantly add a prefilled event (uses birth_date / first partner / birthYear+22 / death_date as the date heuristic). Chips disable themselves when prerequisites are missing or the milestone already exists.
+- **NEW — Cinema mode**: full-screen short-film playback. Hides all chrome, shows a huge gold-typography year, auto-advances ~400ms/year (4s/decade), and animates color-coded event caption cards as the playhead crosses each event's year. Play/Pause toggle and Exit X in the overlay; ESC also exits.
+- Tested end-to-end: 100% backend (28/28), 100% frontend acceptance.
 
 ## P1 backlog
 - Member search / pin / focus camera on member.
