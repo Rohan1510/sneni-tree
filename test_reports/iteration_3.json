@@ -1,0 +1,58 @@
+{
+  "summary": "Iteration 3 testing - Backend smoke passed 21/21 (no backend changes). Frontend: ONE CRITICAL BLOCKER FOUND AND FIXED (focusTarget vs focusIntent typo in FamilyTreeApp.jsx crashed app on any non-empty tree). After fix, 4/6 frontend iteration-3 features verified passing. 2 features still missing/broken: (a) hint label still reads old 'drag · scroll · click a node' instead of required 'drag · pinch · two-finger pan'; (b) Canvas touch-action computes to 'auto' (R3F overwrites the style on the <canvas> element). Half-sibling badge, full-vs-half ordering, fit-to-screen button, and selection edge highlight all verified.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "FamilyTreeApp.jsx (line 95)",
+        "issue": "CRITICAL: ReferenceError 'focusTarget is not defined' crashed the entire app whenever members.length > 0. Variable is named focusIntent but was passed as focusTarget={focusTarget}. Scene3D also expects prop focusIntent. FIXED by testing agent (renamed prop) so that other iteration-3 features could be verified.",
+        "selector": "<Scene3D ... focusTarget={focusTarget} />",
+        "priority": "CRITICAL"
+      },
+      {
+        "component": "FamilyTreeApp.jsx hint label (line ~175)",
+        "issue": "Hint label text still reads 'drag · scroll · click a node'. Iteration 3 requirement: should read 'drag · pinch · two-finger pan'.",
+        "selector": ".text-white/30.text-[10px].tracking-[0.3em]",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Scene3D.jsx <Canvas> wrapper",
+        "issue": "Canvas element computed touch-action is 'auto', not 'none'. @react-three/fiber applies the style prop to a wrapper div but writes its own inline style on the actual <canvas> with touchAction: 'auto' (canvasStyleAttr: 'display: block; width: 390px; height: 844px; touch-action: auto;'). Result: on mobile, single-finger pan on the canvas may scroll the page instead of rotating the orbit. Fix: pass touch-action via CSS (e.g., a stylesheet rule for canvas, or a wrapper div with touchAction:'none'), or pass eventSource/eventPrefix and set CSS on the wrapper. OrbitControls touches={ONE:ROTATE, TWO:DOLLY_PAN} is correctly configured in code.",
+        "selector": "canvas[data-testid='three-canvas']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_members_api.py",
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Change hint label text in FamilyTreeApp.jsx from 'drag · scroll · click a node' to 'drag · pinch · two-finger pan'.",
+    "Ensure touch-action: none is applied to the actual <canvas> element (not just the R3F Canvas wrapper). Options: (1) add a global CSS rule like 'canvas[data-testid=\"three-canvas\"] { touch-action: none; }', (2) wrap <Canvas> in a div with style={{touchAction:'none'}} and pass eventSource={ref} to Canvas, or (3) use a useEffect to set canvas.style.touchAction='none' on mount.",
+    "Verify the focusTarget→focusIntent rename is preserved (already applied by testing agent in /app/frontend/src/components/FamilyTreeApp.jsx)."
+  ],
+  "critical_code_review_comments": [
+    "FamilyTreeApp.jsx: focusTarget vs focusIntent rename was incomplete - state/setter and Scene3D prop name use focusIntent, but the JSX still referenced focusTarget. Always grep for old name when renaming.",
+    "Scene3D.jsx CameraController.useFrame uses lerp factor 0.08 and a 2s timeout fallback - good. intent dependency on the effect uses object identity (new ts each click), works because parent always creates a new object - confirmed working.",
+    "lib/layout.js siblingsOf() correctly handles single-parent case as full sibling only when both members have identical (size==1) parent sets - verified: HalfD (parent A only) treated as HALF relative to ChildC/FullE (parents A+B), and ChildC/FullE are FULL siblings of each other.",
+    "lib/layout.js boundingBox() returns a sensible default size=10 when empty and Math.max(...,6) clamps tiny trees - sensible.",
+    "Scene3D.jsx Canvas inline style touch-action does not reach the <canvas> child - R3F overwrites it. This is a recurring R3F pitfall that affects mobile gesture handling."
+  ],
+  "updated_files": [
+    "/app/frontend/src/components/FamilyTreeApp.jsx (renamed focusTarget prop to focusIntent on Scene3D)"
+  ],
+  "success_rate": {"backend": "100% (21/21)", "frontend": "67% (4 of 6 iteration-3 features pass; 1 CRITICAL bug fixed by tester, 2 still missing)"},
+  "test_credentials": "N/A - no auth in app",
+  "seed_data_creation": "Created 5 TEST_-prefixed members (ParentA, ParentB, ChildC=child of A+B, HalfD=child of A only, FullE=child of A+B) via API to verify half-sibling logic. All cleaned up at end of run.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 3 had a CRITICAL crash bug (focusTarget undefined ReferenceError) fixed by tester. Two requirement misses remain: (1) hint text 'drag · scroll · click a node' should be 'drag · pinch · two-finger pan'; (2) canvas touch-action computes to 'auto' on actual <canvas> element because R3F overwrites Canvas style prop. Half-sibling badge (data-testid='chip-badge-{id}') verified - HalfD shows 'HALF' badge in lavender, FullE shows no badge, full siblings listed before half. Fit-to-screen button (data-testid='fit-to-screen-button') verified clickable, no errors, camera animates. CameraController focus on search-pick verified gold-highlight on selected node edges. Backend 21/21 unchanged. Test data was cleaned up; DB is clean.",
+  "rca of the issue": "RCA: In FamilyTreeApp.jsx, state was renamed from focusTarget to focusIntent (line 19: useState calls it focusIntent). All internal usages (focusOnMember, fitAll setFocusIntent) used the new name. But the Scene3D prop binding (line 95) was left as focusTarget={focusTarget} which referenced an undefined identifier. In React strict-mode/dev build, this throws ReferenceError at render. Reproduction: load app with >=1 member -> sees red error overlay 'focusTarget is not defined'. Mitigation applied: changed to focusIntent={focusIntent}. Prevention: ESLint no-undef rule should catch this; consider enabling create-react-app's default no-undef in CI."
+}

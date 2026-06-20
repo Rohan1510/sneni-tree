@@ -1,14 +1,14 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { Toaster, toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, TreeStructure, Sparkle } from "@phosphor-icons/react";
+import { Plus, TreeStructure, Sparkle, ArrowsOutSimple } from "@phosphor-icons/react";
 import Scene3D from "./Scene3D";
 import AddMemberDialog from "./AddMemberDialog";
 import DetailsPanel from "./DetailsPanel";
 import EmptyState from "./EmptyState";
 import SearchBar from "./SearchBar";
 import { listMembers, deleteMember, uploadPhoto, updateMember } from "../lib/api";
-import { computeLayout } from "../lib/layout";
+import { computeLayout, boundingBox } from "../lib/layout";
 
 export default function FamilyTreeApp() {
   const [members, setMembers] = useState([]);
@@ -16,7 +16,7 @@ export default function FamilyTreeApp() {
   const [selectedId, setSelectedId] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
   const [relateTo, setRelateTo] = useState(null);
-  const [focusTarget, setFocusTarget] = useState(null);
+  const [focusIntent, setFocusIntent] = useState(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -74,9 +74,14 @@ export default function FamilyTreeApp() {
     const pos = layout.nodes[id];
     if (!pos) return;
     setSelectedId(id);
-    // Trigger a fresh focus target reference even if same id
-    setFocusTarget({ ...pos, _k: Math.random() });
+    setFocusIntent({ type: "focus", position: pos, ts: Date.now() });
   }, [layout.nodes]);
+
+  const fitAll = useCallback(() => {
+    if (!layout || Object.keys(layout.nodes).length === 0) return;
+    const bbox = boundingBox(layout.nodes);
+    setFocusIntent({ type: "fit", center: bbox.center, size: bbox.size, ts: Date.now() });
+  }, [layout]);
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-[#0A0B10]" data-testid="family-tree-app">
@@ -87,7 +92,7 @@ export default function FamilyTreeApp() {
             layout={layout}
             selectedId={selectedId}
             onSelect={setSelectedId}
-            focusTarget={focusTarget}
+            focusIntent={focusIntent}
           />
         )}
       </div>
@@ -144,7 +149,7 @@ export default function FamilyTreeApp() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-40"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2"
         >
           <button
             onClick={() => handleAdd(null)}
@@ -153,6 +158,14 @@ export default function FamilyTreeApp() {
           >
             <Plus size={18} weight="bold" />
             <span>Add Member</span>
+          </button>
+          <button
+            onClick={fitAll}
+            data-testid="fit-to-screen-button"
+            title="Fit to screen"
+            className="w-11 h-11 rounded-full glass flex items-center justify-center text-white/70 hover:text-[#D4AF37] hover:-translate-y-0.5 transition-all duration-300"
+          >
+            <ArrowsOutSimple size={18} weight="light" />
           </button>
         </motion.div>
       )}
@@ -201,3 +214,4 @@ export default function FamilyTreeApp() {
     </div>
   );
 }
+

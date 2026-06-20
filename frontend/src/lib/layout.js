@@ -115,19 +115,63 @@ export function computeLayout(members) {
   }
 
   // Siblings: share at least one parent. Only between members with parents.
+  // kind: 'full' (share ALL parents on each side, both have >=1 shared parent and identical parent sets having intersection size == min size and both nonempty)
+  //       'half' (share at least one parent but not all)
   const seenS = new Set();
   const withParents = members.filter(m => (m.parent_ids || []).length > 0);
   for (let i = 0; i < withParents.length; i++) {
     for (let j = i + 1; j < withParents.length; j++) {
       const a = withParents[i], b = withParents[j];
-      const sharedParent = (a.parent_ids || []).some(p => (b.parent_ids || []).includes(p));
-      if (!sharedParent) continue;
+      const aP = new Set(a.parent_ids || []);
+      const bP = new Set(b.parent_ids || []);
+      const shared = [...aP].filter(p => bP.has(p));
+      if (shared.length === 0) continue;
       const k = [a.id, b.id].sort().join("|");
       if (seenS.has(k)) continue;
       seenS.add(k);
-      edges.push({ from: a.id, to: b.id, type: "sibling" });
+      // Full sibling: both have the same parent set (every known parent matches)
+      // (handles single-parent cases too: both have only that one parent recorded)
+      const isFull = aP.size === bP.size && shared.length === aP.size;
+      edges.push({ from: a.id, to: b.id, type: "sibling", kind: isFull ? "full" : "half" });
     }
   }
 
   return { nodes, edges };
+}
+
+// Return { full: [...], half: [...] } siblings for a given member, sorted with full first.
+export function siblingsOf(memberId, members) {
+  const me = members.find(m => m.id === memberId);
+  if (!me) return { full: [], half: [] };
+  const meParents = new Set(me.parent_ids || []);
+  if (meParents.size === 0) return { full: [], half: [] };
+  const full = [];
+  const half = [];
+  for (const other of members) {
+    if (other.id === memberId) continue;
+    const oP = new Set(other.parent_ids || []);
+    if (oP.size === 0) continue;
+    const shared = [...meParents].filter(p => oP.has(p));
+    if (shared.length === 0) continue;
+    const isFull = meParents.size === oP.size && shared.length === meParents.size;
+    (isFull ? full : half).push(other);
+  }
+  return { full, half };
+}
+
+// Returns bounding box {min, max, center} for nodes object {id: {x,y,z}}
+export function boundingBox(nodes) {
+  const vals = Object.values(nodes);
+  if (vals.length === 0) {
+    return { min: { x: 0, y: 0, z: 0 }, max: { x: 0, y: 0, z: 0 }, center: { x: 0, y: 0, z: 0 }, size: 10 };
+  }
+  const min = { x: Infinity, y: Infinity, z: Infinity };
+  const max = { x: -Infinity, y: -Infinity, z: -Infinity };
+  for (const v of vals) {
+    if (v.x < min.x) min.x = v.x; if (v.y < min.y) min.y = v.y; if (v.z < min.z) min.z = v.z;
+    if (v.x > max.x) max.x = v.x; if (v.y > max.y) max.y = v.y; if (v.z > max.z) max.z = v.z;
+  }
+  const center = { x: (min.x + max.x) / 2, y: (min.y + max.y) / 2, z: (min.z + max.z) / 2 };
+  const size = Math.max(max.x - min.x, max.y - min.y, 6);
+  return { min, max, center, size };
 }

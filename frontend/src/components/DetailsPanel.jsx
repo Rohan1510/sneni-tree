@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popove
 import DarkCalendar from "./DarkCalendar";
 import { UserPlus, Trash, UploadSimple, PencilSimple, Heart, GitFork, ArrowDown, UsersThree, CalendarBlank, HeartStraight, Cross } from "@phosphor-icons/react";
 import { photoUrl } from "../lib/api";
+import { siblingsOf } from "../lib/layout";
 import { format, parseISO } from "date-fns";
 
 const fieldStyle = "bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-[#D4AF37] focus-visible:border-[#D4AF37]";
@@ -80,10 +81,8 @@ export default function DetailsPanel({ open, member, members, onClose, onDelete,
   const parents = (member.parent_ids || []).map(id => members.find(m => m.id === id)).filter(Boolean);
   const partners = (member.partner_ids || []).map(id => members.find(m => m.id === id)).filter(Boolean);
   const children = members.filter(m => (m.parent_ids || []).includes(member.id));
-  const siblings = members.filter(m =>
-    m.id !== member.id &&
-    (m.parent_ids || []).some(p => (member.parent_ids || []).includes(p))
-  );
+  const { full: fullSiblings, half: halfSiblings } = siblingsOf(member.id, members);
+  const totalSiblings = fullSiblings.length + halfSiblings.length;
 
   const avatarUrl = photoUrl(member.photo_path);
   const deceased = !!member.death_date;
@@ -275,11 +274,19 @@ export default function DetailsPanel({ open, member, members, onClose, onDelete,
               )}
             </Section>
 
-            <Section label="Siblings" icon={UsersThree} count={siblings.length}>
-              {siblings.map(s => <Chip key={s.id} member={s} onClick={() => onPickMember?.(s.id)} />)}
+            <Section label="Siblings" icon={UsersThree} count={totalSiblings}>
+              {fullSiblings.map(s => <Chip key={s.id} member={s} onClick={() => onPickMember?.(s.id)} />)}
+              {halfSiblings.map(s => (
+                <Chip
+                  key={s.id}
+                  member={s}
+                  onClick={() => onPickMember?.(s.id)}
+                  badge="HALF"
+                />
+              ))}
               {parents.length > 0 ? (
                 <EmptyChip onClick={() => onAddRelated({ memberId: member.id, relation: "sibling" })} text="Add sibling" testId="add-sibling-button" />
-              ) : siblings.length === 0 ? (
+              ) : totalSiblings === 0 ? (
                 <span className="font-manrope text-[11px] text-white/30 italic px-1">Add a parent first to record siblings.</span>
               ) : null}
             </Section>
@@ -340,7 +347,7 @@ function Section({ label, icon: Icon, count, children }) {
   );
 }
 
-function Chip({ member, meta, onClick }) {
+function Chip({ member, meta, badge, onClick }) {
   const avatar = photoUrl(member.photo_path);
   const deceased = !!member.death_date;
   return (
@@ -358,6 +365,14 @@ function Chip({ member, meta, onClick }) {
         )}
       </div>
       <span className="font-manrope text-xs text-white/80 whitespace-nowrap">{member.name}</span>
+      {badge && (
+        <span
+          className="font-manrope text-[8px] tracking-[0.2em] text-[#9B82C9] bg-[#9B82C9]/10 ring-1 ring-[#9B82C9]/30 rounded-full px-1.5 py-px"
+          data-testid={`chip-badge-${member.id}`}
+        >
+          {badge}
+        </span>
+      )}
       {meta && <span className="font-manrope text-[10px] tracking-wider">{meta}</span>}
     </button>
   );
