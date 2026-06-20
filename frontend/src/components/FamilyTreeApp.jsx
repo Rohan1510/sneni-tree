@@ -167,6 +167,7 @@ export default function FamilyTreeApp() {
             onSelect={setSelectedId}
             focusIntent={focusIntent}
             timelineYear={timelineActive ? timelineYear : null}
+            mode={mode}
           />
         )}
       </div>

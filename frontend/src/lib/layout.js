@@ -9,37 +9,43 @@ export function computeLayout(members, mode = "tree") {
   const byId = Object.fromEntries(members.map(m => [m.id, m]));
   const generations = {};
   const visited = new Set();
-  const queue = [];
 
-  const seed = members[0];
-  generations[seed.id] = 0;
-  visited.add(seed.id);
-  queue.push(seed.id);
+  // Multi-component BFS — handle disconnected sub-families and orphans.
+  // For each component, seed on a root (no parents) when possible so the tree grows naturally downward.
+  while (visited.size < members.length) {
+    const seed = members.find(m => !visited.has(m.id) && (m.parent_ids || []).length === 0)
+              || members.find(m => !visited.has(m.id));
+    if (!seed) break;
 
-  while (queue.length) {
-    const id = queue.shift();
-    const m = byId[id];
-    const gen = generations[id];
+    generations[seed.id] = 0;
+    visited.add(seed.id);
+    const queue = [seed.id];
 
-    for (const pid of m.parent_ids || []) {
-      if (byId[pid] && !visited.has(pid)) {
-        generations[pid] = gen + 1;
-        visited.add(pid);
-        queue.push(pid);
+    while (queue.length) {
+      const id = queue.shift();
+      const m = byId[id];
+      const gen = generations[id];
+
+      for (const pid of m.parent_ids || []) {
+        if (byId[pid] && !visited.has(pid)) {
+          generations[pid] = gen + 1;
+          visited.add(pid);
+          queue.push(pid);
+        }
       }
-    }
-    for (const pid of m.partner_ids || []) {
-      if (byId[pid] && !visited.has(pid)) {
-        generations[pid] = gen;
-        visited.add(pid);
-        queue.push(pid);
+      for (const pid of m.partner_ids || []) {
+        if (byId[pid] && !visited.has(pid)) {
+          generations[pid] = gen;
+          visited.add(pid);
+          queue.push(pid);
+        }
       }
-    }
-    for (const other of members) {
-      if ((other.parent_ids || []).includes(id) && !visited.has(other.id)) {
-        generations[other.id] = gen - 1;
-        visited.add(other.id);
-        queue.push(other.id);
+      for (const other of members) {
+        if ((other.parent_ids || []).includes(id) && !visited.has(other.id)) {
+          generations[other.id] = gen - 1;
+          visited.add(other.id);
+          queue.push(other.id);
+        }
       }
     }
   }
@@ -53,44 +59,119 @@ export function computeLayout(members, mode = "tree") {
     byGen[g].push(m);
   }
 
-  const SPACING_X = 4.8;
+  const SPACING_X = 4.6;
   const SPACING_Y = 4.5;
+  const PARTNER_DX = 2.6; // half-distance between partners
   const nodes = {};
 
-  for (const [gStr, list] of Object.entries(byGen)) {
-    const g = Number(gStr);
-    // Cluster by parent set so siblings are adjacent
-    const groups = new Map(); // key: sorted parent ids -> [members]
+  // ---- Hierarchical placement: process older generations first, then position children
+  //      directly under the centre of their parents. Resolve sibling-group overlap by
+  //      shifting later groups to the right.
+  const sortedGens = Object.keys(byGen).map(Number).sort((a, b) => b - a); // oldest first
+
+  for (const g of sortedGens) {
+    const list = byGen[g];
+    // Build sibling groups (key = sorted parent ids; "" if no parents)
+    const groups = new Map();
     for (const m of list) {
-      const key = (m.parent_ids || []).slice().sort().join("|") || "_orphan";
+      const key = (m.parent_ids || []).slice().sort().join("|");
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(m);
     }
 
-    const ordered = [];
-    const used = new Set();
-    for (const group of groups.values()) {
-      for (const m of group) {
+    // Compute a desired centre x per group:
+    //  - children of placed parents: midpoint of parents
+    //  - orphans / standalone: sequential
+    const groupEntries = [];
+    let nextStandaloneX = 0;
+    for (const [key, list2] of groups.entries()) {
+      let desired;
+      if (key === "") {
+        desired = nextStandaloneX;
+        nextStandaloneX += (list2.length + 1) * SPACING_X;
+      } else {
+        const parentXs = key.split("|")
+          .map(pid => nodes[pid]?.x)
+          .filter(x => x != null);
+        if (parentXs.length === 0) {
+          desired = nextStandaloneX;
+          nextStandaloneX += (list2.length + 1) * SPACING_X;
+        } else {
+          desired = parentXs.reduce((a, b) => a + b, 0) / parentXs.length;
+        }
+      }
+      groupEntries.push({ key, members: list2, desired });
+    }
+
+    // Sort groups by desired x, then resolve overlaps
+    groupEntries.sort((a, b) => a.desired - b.desired);
+
+    let lastRight = -Infinity;
+    for (const grp of groupEntries) {
+      // Within group: order members keeping partners adjacent
+      const ordered = [];
+      const used = new Set();
+      for (const m of grp.members) {
         if (used.has(m.id)) continue;
         ordered.push(m);
         used.add(m.id);
-        // Place partners right after, even if in different sibling group
         for (const pid of m.partner_ids || []) {
           if (!used.has(pid) && byId[pid] && generations[pid] === g) {
-            ordered.push(byId[pid]);
-            used.add(pid);
+            // Partner only if also in this same parent-group OR partner has no parents
+            const pInGroup = grp.members.some(x => x.id === pid);
+            if (pInGroup) { ordered.push(byId[pid]); used.add(pid); }
           }
         }
       }
-    }
+      // Add any leftover members (e.g., partner from outside group already pushed in another iteration)
+      for (const m of grp.members) {
+        if (!used.has(m.id)) { ordered.push(m); used.add(m.id); }
+      }
 
-    const n = ordered.length;
-    ordered.forEach((m, i) => {
-      const x = (i - (n - 1) / 2) * SPACING_X;
-      const y = g * SPACING_Y;
-      const z = ((i % 2 === 0) ? 0.4 : -0.4);
-      nodes[m.id] = { x, y, z };
-    });
+      const n = ordered.length;
+      // Desired centre = group.desired; spread n items symmetrically
+      const groupWidth = (n - 1) * SPACING_X;
+      let startX = grp.desired - groupWidth / 2;
+      // Resolve overlap with previous group
+      if (startX < lastRight + SPACING_X * 0.9) {
+        startX = lastRight + SPACING_X * 0.9;
+      }
+
+      ordered.forEach((m, i) => {
+        const x = startX + i * SPACING_X;
+        const y = g * SPACING_Y;
+        // Small alternating z for visual depth in tree mode (avoid perfectly flat plane)
+        const z = ((i % 2 === 0) ? 0.25 : -0.25);
+        nodes[m.id] = { x, y, z };
+      });
+
+      lastRight = startX + groupWidth;
+    }
+  }
+
+  // Second pass: place same-generation partners that don't share parents (cross-family partners)
+  // next to their already-placed partner if they ended up far away.
+  for (const m of members) {
+    if (!nodes[m.id]) continue;
+    for (const pid of m.partner_ids || []) {
+      if (!nodes[pid]) continue;
+      if (generations[pid] !== generations[m.id]) continue;
+      const dx = Math.abs(nodes[m.id].x - nodes[pid].x);
+      if (dx > SPACING_X * 1.6) {
+        // The partner without parents (or fewer parents) shifts next to the other
+        const moveOther = (byId[pid].parent_ids || []).length <= (m.parent_ids || []).length ? pid : m.id;
+        const anchor = moveOther === pid ? m.id : pid;
+        const targetX = nodes[anchor].x + PARTNER_DX * (Math.random() > 0.5 ? 1 : -1);
+        nodes[moveOther].x = targetX;
+      }
+    }
+  }
+
+  // Recenter all nodes horizontally around 0
+  const xs = Object.values(nodes).map(n => n.x);
+  if (xs.length > 0) {
+    const offset = (Math.min(...xs) + Math.max(...xs)) / 2;
+    for (const id in nodes) nodes[id].x -= offset;
   }
 
   // === Timeline mode: override z by birth year ===

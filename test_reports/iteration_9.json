@@ -1,0 +1,31 @@
+{
+  "summary": "Iteration 7 (Tree-mode hierarchical layout + elbow parent-child lines + multi-component BFS orphan handling) — END-TO-END PASS on both backend and frontend. Backend regression: 28/28 pytest pass. Frontend, in tree mode (after fit-to-screen on a 1600x900 viewport with 6 seeded members): screen-space Y positions are TEST_ParentA y=279, TEST_ParentB y=282, Krishna(orphan) y=275 — all on the upper 'parents/gen-0' row; TEST_HalfD y=658, TEST_ChildC y=707, TEST_FullE y=747 — all on the lower 'children' row. Parent→child gap = 376px (spec required >=100px). Two distinct Y bands detected — exactly matches spec. Krishna (orphan, sole member of its component) is placed at gen-0 in its own sub-tree to the left without collapsing the rest of the layout — the multi-component BFS fix works as intended (regression for previous bug confirmed solved). Visual verification via screenshot: clean elbow parent→child lines (vertical-horizontal-vertical) from BOTH TEST_ParentA AND TEST_ParentB down to all three children, white-ish color when not selected. Short dashed gold horizontal connector between TEST_ParentA and TEST_ParentB (partner edge). NO sibling lines render between HalfD/ChildC/FullE in tree mode (suppression via `if (mode === 'tree' && isSibling) return null;` works). Switched to Timeline mode: timeline-scrubber appears, edges switch back to organic QuadraticBezier curves (visible diagonal curved lines from parents row to children row, plus dashed sibling curves), partner edge remains dashed gold. Search/focus: typed 'TEST_HalfD' → 1 search-result returned → click opens details-panel → HALF text/badge visible in panel for the half-sibling relation to TEST_ChildC. Cinema mode (tested standalone after flow): cinema-button click → cinema-overlay mounts within 3s, cinema-year starts at 1929, advances to 1940 after 4s real-time (~365ms/year, consistent with prior iterations), brand-logo + member-counter + mode-toggle-button all unmount from DOM during cinema, cinema-exit-button click restores chrome and unmounts overlay. No console errors observed. The earlier in-flow cinema attempt did not mount the overlay within 2.5s timeout but the standalone re-test confirmed cinema works correctly — this is a test-script timing artifact, not a product bug.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_events_api.py",
+    "/app/backend/tests/test_members_api.py",
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "layout.js line 164: cross-family-partner placement uses Math.random() to choose left/right offset. Non-deterministic layouts re-shuffle position on every React re-render of FamilyTreeApp (e.g., on selectedId change). Recommend deterministic tie-break (e.g., hash of partner ids) so the tree doesn't visibly jitter between renders.",
+    "Scene3D.jsx Connections component lacks React.memo — the entire edges array re-renders every time `selectedId` changes, even though only the highlighted boolean changes. For 6 nodes this is negligible; for larger trees consider memoizing each edge by (from,to,selectedId-involvement) and lifting the highlight check.",
+    "layout.js line 52 fallback `if (!visited.has(m.id)) generations[m.id] = 0;` is dead code after the new multi-component BFS loop (every member must already be visited). Harmless but can be removed for clarity.",
+    "Tree mode elbow Line uses fixed offsets (a.y-0.4 / b.y+0.4) which assume node radius ~0.4. If MemberNode radius is tuned in the future the line will detach from / overlap the node — consider importing the radius constant or computing it from the node's bounding sphere.",
+    "Multi-component BFS prefers a parentless seed but doesn't prefer the LARGEST component first. With many orphan singletons interleaved with one large family, this is fine; if a future seed produces multiple multi-member components, layout horizontal order will depend on `members` array ordering — worth documenting."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (28/28 pytest pass)", "frontend": "100% on all Iteration-7 acceptance criteria"},
+  "test_credentials": "N/A - no auth in this app",
+  "seed_data_creation": "Re-seeded via `python /tmp/seed_events.py` immediately before frontend run. Pytest cleanup wipes TEST_ members, so seed MUST run AFTER pytest. Final DB state at end of test: 6 members (Krishna + 5 TEST_), 7 events. No additional test data created during this iteration's UI run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 7 fully works — tree-mode hierarchical layout with elbow parent-child lines is visually confirmed (see /app/.screenshots/tree_v2.png and tree_mode.png). IMPORTANT WORKFLOW: pytest cleanup deletes TEST_ members, so when running both backend AND frontend tests, ALWAYS re-run `python /tmp/seed_events.py` AFTER pytest and BEFORE Playwright. Cinema overlay needs ~3s after click to fully mount in this environment (initial 2.5s wait was insufficient in my chained flow; standalone test with 3s waited consistently worked). Coordinate reference for tree mode: at 1600x900 viewport after fit-to-screen, parents row sits at y~280, children row at y~700.",
+  "rca of the issue": "No bugs blocking acceptance. The first chained Playwright run reported cinema-overlay not mounting, but standalone re-run with a 3s wait confirmed it works correctly — false negative from too-short wait in a long chained flow. Layout multi-component BFS regression test passes: Krishna (orphan, placed as `members` array contains parented members first) is correctly given gen=0 and a horizontal slot of its own without collapsing the rest of the family into the same row, which was the iteration-7 root cause."
+}

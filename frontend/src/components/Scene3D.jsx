@@ -1,10 +1,10 @@
 import React, { Suspense, useRef, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, Sparkles, QuadraticBezierLine } from "@react-three/drei";
+import { OrbitControls, Sparkles, QuadraticBezierLine, Line } from "@react-three/drei";
 import * as THREE from "three";
 import MemberNode from "./MemberNode";
 
-function Connections({ layout, selectedId }) {
+function Connections({ layout, selectedId, mode }) {
   const { nodes, edges } = layout;
   return (
     <>
@@ -12,53 +12,89 @@ function Connections({ layout, selectedId }) {
         const a = nodes[e.from];
         const b = nodes[e.to];
         if (!a || !b) return null;
-        const start = [a.x, a.y, a.z];
-        const end = [b.x, b.y, b.z];
         const isPartner = e.type === "partner";
         const isSibling = e.type === "sibling";
         const isParent = e.type === "parent";
         const isHalfSibling = isSibling && e.kind === "half";
-
-        const mid = [
-          (a.x + b.x) / 2,
-          (a.y + b.y) / 2 + (isParent ? -0.6 : isSibling ? (isHalfSibling ? -0.55 : -0.25) : 0),
-          (a.z + b.z) / 2,
-        ];
         const highlighted = selectedId && (e.from === selectedId || e.to === selectedId);
 
-        let color = "#FFFFFF";
-        let opacity = 0.18;
-        let lineWidth = 1;
-        let dashed = false;
-        let dashSize = 0;
-        let gapSize = 0;
+        // In tree mode, hide explicit sibling lines (siblings are visually adjacent under the parents)
+        if (mode === "tree" && isSibling) return null;
 
+        // PARENT → CHILD : crisp elbow line in tree mode, gentle bezier in timeline mode
+        if (isParent) {
+          if (mode === "tree") {
+            // Elbow: parent → down to midY → horizontal to child.x → down to child
+            const midY = (a.y + b.y) / 2;
+            const points = [
+              [a.x, a.y - 0.4, a.z],
+              [a.x, midY, a.z],
+              [b.x, midY, b.z],
+              [b.x, b.y + 0.4, b.z],
+            ];
+            return (
+              <Line
+                key={`p-${i}`}
+                points={points}
+                color={highlighted ? "#D4AF37" : "#FFFFFF"}
+                lineWidth={highlighted ? 2 : 1}
+                transparent
+                opacity={highlighted ? 0.95 : 0.32}
+              />
+            );
+          }
+          // timeline mode: keep bezier
+          const mid = [(a.x + b.x) / 2, (a.y + b.y) / 2 - 0.6, (a.z + b.z) / 2];
+          return (
+            <QuadraticBezierLine
+              key={`p-${i}`}
+              start={[a.x, a.y, a.z]}
+              end={[b.x, b.y, b.z]}
+              mid={mid}
+              color={highlighted ? "#D4AF37" : "#FFFFFF"}
+              lineWidth={highlighted ? 2 : 1}
+              transparent
+              opacity={highlighted ? 0.95 : 0.22}
+            />
+          );
+        }
+
+        // PARTNER : short horizontal connector
         if (isPartner) {
-          color = "#E5C07B"; opacity = 0.45; dashed = true; dashSize = 0.25; gapSize = 0.18;
+          const points = [
+            [a.x, a.y, a.z],
+            [b.x, b.y, b.z],
+          ];
+          return (
+            <Line
+              key={`pt-${i}`}
+              points={points}
+              color={highlighted ? "#D4AF37" : "#E5C07B"}
+              lineWidth={highlighted ? 2 : 1.2}
+              transparent
+              opacity={highlighted ? 0.95 : 0.55}
+              dashed
+              dashSize={0.25}
+              gapSize={0.18}
+            />
+          );
         }
-        if (isSibling && !isHalfSibling) {
-          // Full sibling: cool blue, denser dashes
-          color = "#7AA2FF"; opacity = 0.22; dashed = true; dashSize = 0.14; gapSize = 0.18; lineWidth = 0.9;
-        }
-        if (isHalfSibling) {
-          // Half sibling: muted lavender, sparser dashes + lighter weight
-          color = "#9B82C9"; opacity = 0.16; dashed = true; dashSize = 0.06; gapSize = 0.34; lineWidth = 0.7;
-        }
-        if (highlighted) { color = "#D4AF37"; opacity = 0.95; lineWidth = 2; }
 
+        // SIBLING (only timeline mode reaches here)
+        const mid = [(a.x + b.x) / 2, (a.y + b.y) / 2 - (isHalfSibling ? 0.55 : 0.25), (a.z + b.z) / 2];
         return (
           <QuadraticBezierLine
-            key={`${e.type}-${i}`}
-            start={start}
-            end={end}
+            key={`s-${i}`}
+            start={[a.x, a.y, a.z]}
+            end={[b.x, b.y, b.z]}
             mid={mid}
-            color={color}
-            lineWidth={lineWidth}
+            color={highlighted ? "#D4AF37" : (isHalfSibling ? "#9B82C9" : "#7AA2FF")}
+            lineWidth={highlighted ? 2 : (isHalfSibling ? 0.7 : 0.9)}
             transparent
-            opacity={opacity}
-            dashed={dashed}
-            dashSize={dashSize}
-            gapSize={gapSize}
+            opacity={highlighted ? 0.95 : (isHalfSibling ? 0.16 : 0.22)}
+            dashed
+            dashSize={isHalfSibling ? 0.06 : 0.14}
+            gapSize={isHalfSibling ? 0.34 : 0.18}
           />
         );
       })}
@@ -116,7 +152,7 @@ function CameraController({ intent }) {
   return null;
 }
 
-export default function Scene3D({ members, layout, selectedId, onSelect, focusIntent, timelineYear }) {
+export default function Scene3D({ members, layout, selectedId, onSelect, focusIntent, timelineYear, mode }) {
   return (
     <Canvas
       camera={{ position: [0, 2, 18], fov: 50 }}
@@ -135,7 +171,7 @@ export default function Scene3D({ members, layout, selectedId, onSelect, focusIn
         <Sparkles count={180} scale={[40, 30, 40]} size={2} speed={0.2} opacity={0.4} color="#D4AF37" />
         <Sparkles count={120} scale={[60, 40, 60]} size={1} speed={0.1} opacity={0.3} color="#FFFFFF" />
 
-        <Connections layout={layout} selectedId={selectedId} />
+        <Connections layout={layout} selectedId={selectedId} mode={mode} />
 
         {members.map(m => {
           const p = layout.nodes[m.id];
